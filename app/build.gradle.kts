@@ -50,6 +50,7 @@ dependencies {
 
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.9.4")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.9.4")
+    implementation("androidx.security:security-crypto:1.1.0")
 
     implementation("androidx.navigation:navigation-compose:2.9.5")
 
