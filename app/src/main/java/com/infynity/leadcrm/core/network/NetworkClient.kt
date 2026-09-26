@@ -1,10 +1,12 @@
 package com.infynity.leadcrm.core.network
 
+import android.content.Context
+import com.infynity.leadcrm.core.security.SessionManager
 import kotlinx.serialization.json.Json
 import okhttp3.OkHttpClient
+import okhttp3.MediaType.Companion.toMediaType
 import retrofit2.Retrofit
 import retrofit2.converter.kotlinx.serialization.asConverterFactory
-import okhttp3.MediaType.Companion.toMediaType
 
 object NetworkClient {
 
@@ -13,15 +15,20 @@ object NetworkClient {
         explicitNulls = false
     }
 
-    private val okHttpClient = OkHttpClient.Builder()
-        .build()
+    fun create(context: Context): LeadCrmApi {
+        val sessionManager = SessionManager(context.applicationContext)
 
-    val api: LeadCrmApi = Retrofit.Builder()
-        .baseUrl(ApiConfig.BASE_URL)
-        .client(okHttpClient)
-        .addConverterFactory(
-            json.asConverterFactory("application/json".toMediaType())
-        )
-        .build()
-        .create(LeadCrmApi::class.java)
+        val okHttpClient = OkHttpClient.Builder()
+            .addInterceptor(AuthInterceptor(sessionManager))
+            .build()
+
+        return Retrofit.Builder()
+            .baseUrl(ApiConfig.BASE_URL)
+            .client(okHttpClient)
+            .addConverterFactory(
+                json.asConverterFactory("application/json".toMediaType())
+            )
+            .build()
+            .create(LeadCrmApi::class.java)
+    }
 }
