@@ -3,42 +3,47 @@ package com.infynity.leadcrm
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
+import androidx.activity.viewModels
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.collectAsState
+import com.infynity.leadcrm.feature.auth.AuthUiState
+import com.infynity.leadcrm.feature.auth.AuthViewModel
+import com.infynity.leadcrm.feature.auth.AuthViewModelFactory
+import com.infynity.leadcrm.feature.auth.LoginScreen
 
 class MainActivity : ComponentActivity() {
+
+    private val authViewModel: AuthViewModel by viewModels {
+        AuthViewModelFactory(
+            (application as LeadCrmApplication)
+                .appContainer
+                .authRepository
+        )
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         setContent {
-            LeadCRMApp()
+            val uiState by authViewModel.uiState.collectAsState()
+
+            LeadCRMApp(
+                uiState = uiState,
+                onLogin = authViewModel::login
+            )
         }
     }
 }
 
-@Composable
-fun LeadCRMApp() {
-    MaterialTheme {
-        Surface(
-            modifier = Modifier.fillMaxSize()
-        ) {
-            Column(
-                modifier = Modifier.fillMaxSize(),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
-            ) {
-                Text(
-                    text = "LeadCRM",
-                    style = MaterialTheme.typography.headlineMedium
-                )
-            }
-        }
+@androidx.compose.runtime.Composable
+fun LeadCRMApp(
+    uiState: AuthUiState,
+    onLogin: (username: String, password: String) -> Unit
+) {
+    androidx.compose.material3.MaterialTheme {
+        LoginScreen(
+            uiState = uiState,
+            onLogin = onLogin
+        )
     }
 }
