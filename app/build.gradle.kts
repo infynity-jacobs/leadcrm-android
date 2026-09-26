@@ -10,6 +10,7 @@ android {
     compileSdk = 36
 
     defaultConfig {
+        buildConfigField("String", "API_BASE_URL", "\"https://crm.myinfynity.com/api/\"")
         applicationId = "com.infynity.leadcrm"
         minSdk = 26
         targetSdk = 36
@@ -36,6 +37,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 
@@ -52,6 +54,10 @@ dependencies {
     implementation("androidx.navigation:navigation-compose:2.9.5")
 
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.9.0")
+    implementation("com.squareup.retrofit2:retrofit:3.0.0")
+    implementation("com.squareup.retrofit2:converter-kotlinx-serialization:3.0.0")
+    implementation("com.squareup.okhttp3:okhttp:5.1.0")
+    implementation("com.squareup.okhttp3:logging-interceptor:5.1.0")
 
     debugImplementation("androidx.compose.ui:ui-tooling")
 
