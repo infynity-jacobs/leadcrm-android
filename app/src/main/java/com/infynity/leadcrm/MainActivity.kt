@@ -19,7 +19,7 @@ import com.infynity.leadcrm.feature.auth.AuthUiState
 import com.infynity.leadcrm.feature.auth.AuthViewModel
 import com.infynity.leadcrm.feature.auth.AuthViewModelFactory
 import com.infynity.leadcrm.feature.auth.LoginScreen
-import com.infynity.leadcrm.feature.home.HomeScreen
+import com.infynity.leadcrm.core.navigation.AppShell
 
 class MainActivity : ComponentActivity() {
 
@@ -80,7 +80,7 @@ fun LeadCRMApp(
             }
 
             is AuthUiState.LoggedIn -> {
-                HomeScreen(
+                AppShell(
                     user = uiState.user,
                     onLogout = onLogout
                 )
