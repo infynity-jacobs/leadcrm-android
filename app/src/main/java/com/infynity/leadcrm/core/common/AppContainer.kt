@@ -5,6 +5,7 @@ import com.infynity.leadcrm.core.network.LeadCrmApi
 import com.infynity.leadcrm.core.network.NetworkClient
 import com.infynity.leadcrm.core.security.SessionManager
 import com.infynity.leadcrm.data.repository.AuthRepository
+import com.infynity.leadcrm.data.repository.CalendarRepository
 import com.infynity.leadcrm.data.repository.DashboardRepository
 import com.infynity.leadcrm.data.repository.LeadRepository
 import com.infynity.leadcrm.data.repository.TaskRepository
@@ -35,5 +36,9 @@ class AppContainer(context: Context) {
 
     val taskRepository: TaskRepository by lazy {
         TaskRepository(api)
+    }
+
+    val calendarRepository: CalendarRepository by lazy {
+        CalendarRepository(api)
     }
 }

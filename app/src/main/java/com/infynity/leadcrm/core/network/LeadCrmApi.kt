@@ -1,6 +1,9 @@
 package com.infynity.leadcrm.core.network
 
+import com.infynity.leadcrm.core.network.models.CalendarEventCreateRequest
 import com.infynity.leadcrm.core.network.models.CalendarEventListResponse
+import com.infynity.leadcrm.core.network.models.CalendarEventResponse
+import com.infynity.leadcrm.core.network.models.CalendarEventUpdateRequest
 import com.infynity.leadcrm.core.network.models.LeadDetailResponse
 import com.infynity.leadcrm.core.network.models.LeadListResponse
 import com.infynity.leadcrm.core.network.models.LeadResponse
@@ -51,8 +54,38 @@ interface LeadCrmApi {
     @GET("calendar/events")
     suspend fun getCalendarEvents(
         @Query("start_at") startAt: String,
-        @Query("end_at") endAt: String
+        @Query("end_at") endAt: String,
+        @Query("team_id") teamId: Int? = null,
+        @Query("assigned_to_id") assignedToId: Int? = null,
+        @Query("lead_id") leadId: Int? = null,
+        @Query("q") query: String? = null
     ): CalendarEventListResponse
+
+    @GET("calendar/events/{eventId}")
+    suspend fun getCalendarEvent(
+        @Path("eventId") eventId: Int
+    ): CalendarEventResponse
+
+    @GET("calendar/tasks/{taskId}/events")
+    suspend fun getTaskCalendarEvents(
+        @Path("taskId") taskId: Int
+    ): CalendarEventListResponse
+
+    @POST("calendar/events")
+    suspend fun createCalendarEvent(
+        @Body request: CalendarEventCreateRequest
+    ): CalendarEventResponse
+
+    @PUT("calendar/events/{eventId}")
+    suspend fun updateCalendarEvent(
+        @Path("eventId") eventId: Int,
+        @Body request: CalendarEventUpdateRequest
+    ): CalendarEventResponse
+
+    @retrofit2.http.DELETE("calendar/events/{eventId}")
+    suspend fun deleteCalendarEvent(
+        @Path("eventId") eventId: Int
+    ): Map<String, String>
 
     @GET("leads")
     suspend fun getLeads(

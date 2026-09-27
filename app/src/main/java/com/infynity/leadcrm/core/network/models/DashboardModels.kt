@@ -69,6 +69,39 @@ data class CalendarEventListResponse(
 )
 
 @Serializable
+data class CalendarEventCreateRequest(
+    val title: String,
+    val description: String? = null,
+    @SerialName("event_type") val eventType: String = "general",
+    @SerialName("start_at") val startAt: String,
+    @SerialName("end_at") val endAt: String,
+    @SerialName("all_day") val allDay: Boolean = false,
+    val location: String? = null,
+    @SerialName("lead_id") val leadId: Int? = null,
+    @SerialName("task_id") val taskId: Int? = null,
+    @SerialName("assigned_to_id") val assignedToId: Int? = null,
+    @SerialName("team_id") val teamId: Int? = null,
+    val outcome: String? = null
+)
+
+@Serializable
+data class CalendarEventUpdateRequest(
+    val title: String? = null,
+    val description: String? = null,
+    @SerialName("event_type") val eventType: String? = null,
+    @SerialName("start_at") val startAt: String? = null,
+    @SerialName("end_at") val endAt: String? = null,
+    @SerialName("all_day") val allDay: Boolean? = null,
+    val location: String? = null,
+    @SerialName("lead_id") val leadId: Int? = null,
+    @SerialName("task_id") val taskId: Int? = null,
+    @SerialName("assigned_to_id") val assignedToId: Int? = null,
+    @SerialName("team_id") val teamId: Int? = null,
+    val status: String? = null,
+    val outcome: String? = null
+)
+
+@Serializable
 data class CalendarEventResponse(
     val id: Int,
     val title: String,

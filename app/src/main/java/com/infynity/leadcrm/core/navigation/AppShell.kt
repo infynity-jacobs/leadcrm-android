@@ -37,6 +37,9 @@ import com.infynity.leadcrm.feature.tasks.TasksViewModel
 import com.infynity.leadcrm.feature.tasks.TasksViewModelFactory
 import com.infynity.leadcrm.feature.home.HomeViewModel
 import com.infynity.leadcrm.feature.home.HomeViewModelFactory
+import com.infynity.leadcrm.feature.calendar.CalendarScreen
+import com.infynity.leadcrm.feature.calendar.CalendarViewModel
+import com.infynity.leadcrm.feature.calendar.CalendarViewModelFactory
 
 @Composable
 fun AppShell(
@@ -80,6 +83,12 @@ fun AppShell(
     val tasksViewModel: TasksViewModel = viewModel(
         factory = TasksViewModelFactory(
             application.appContainer.taskRepository
+        )
+    )
+
+    val calendarViewModel: CalendarViewModel = viewModel(
+        factory = CalendarViewModelFactory(
+            application.appContainer.calendarRepository
         )
     )
 
@@ -207,7 +216,9 @@ fun AppShell(
                 }
 
                 AppDestination.CALENDAR -> {
-                    PlaceholderScreen(title = "Calendar")
+                    CalendarScreen(
+                        viewModel = calendarViewModel
+                    )
                 }
 
                 AppDestination.MORE -> {
