@@ -17,6 +17,12 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.infynity.leadcrm.LeadCrmApplication
 import com.infynity.leadcrm.core.network.UserResponse
 import com.infynity.leadcrm.feature.home.HomeScreen
+import com.infynity.leadcrm.feature.leads.LeadDetailScreen
+import com.infynity.leadcrm.feature.leads.LeadDetailViewModel
+import com.infynity.leadcrm.feature.leads.LeadDetailViewModelFactory
+import com.infynity.leadcrm.feature.leads.LeadsScreen
+import com.infynity.leadcrm.feature.leads.LeadsViewModel
+import com.infynity.leadcrm.feature.leads.LeadsViewModelFactory
 import com.infynity.leadcrm.feature.home.HomeViewModel
 import com.infynity.leadcrm.feature.home.HomeViewModelFactory
 
@@ -29,6 +35,10 @@ fun AppShell(
         mutableStateOf(AppDestination.HOME)
     }
 
+    var selectedLeadId by remember {
+        mutableStateOf<Int?>(null)
+    }
+
     val application = LocalContext.current.applicationContext as LeadCrmApplication
 
     val homeViewModel: HomeViewModel = viewModel(
@@ -36,6 +46,22 @@ fun AppShell(
             application.appContainer.dashboardRepository
         )
     )
+
+    val leadsViewModel: LeadsViewModel = viewModel(
+        factory = LeadsViewModelFactory(
+            application.appContainer.leadRepository
+        )
+    )
+
+    val leadDetailViewModel: LeadDetailViewModel? = selectedLeadId?.let { leadId ->
+        viewModel(
+            key = "lead-detail-$leadId",
+            factory = LeadDetailViewModelFactory(
+                application.appContainer.leadRepository,
+                leadId
+            )
+        )
+    }
 
     Scaffold(
         bottomBar = {
@@ -63,7 +89,21 @@ fun AppShell(
                 }
 
                 AppDestination.LEADS -> {
-                    PlaceholderScreen(title = "Leads")
+                    if (selectedLeadId != null && leadDetailViewModel != null) {
+                        LeadDetailScreen(
+                            viewModel = leadDetailViewModel,
+                            onBack = {
+                                selectedLeadId = null
+                            }
+                        )
+                    } else {
+                        LeadsScreen(
+                            viewModel = leadsViewModel,
+                            onLeadSelected = { leadId ->
+                                selectedLeadId = leadId
+                            }
+                        )
+                    }
                 }
 
                 AppDestination.TASKS -> {

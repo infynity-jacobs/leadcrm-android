@@ -108,3 +108,63 @@ data class LeadResponse(
     @SerialName("team_name") val teamName: String? = null,
     @SerialName("product_names") val productNames: List<String> = emptyList()
 )
+
+@Serializable
+data class LeadHistoryResponse(
+    val id: Int,
+    @SerialName("old_status") val oldStatus: String? = null,
+    @SerialName("new_status") val newStatus: String,
+    val note: String? = null,
+    @SerialName("changed_at") val changedAt: String,
+    @SerialName("changed_by_id") val changedById: Int? = null,
+    @SerialName("changed_by_name") val changedByName: String? = null
+)
+
+@Serializable
+data class FollowUpResponse(
+    val id: Int,
+    @SerialName("lead_id") val leadId: Int,
+    @SerialName("staff_id") val staffId: Int? = null,
+    @SerialName("staff_name") val staffName: String? = null,
+    @SerialName("follow_up_type") val followUpType: String,
+    @SerialName("scheduled_at") val scheduledAt: String? = null,
+    @SerialName("completed_at") val completedAt: String? = null,
+    val outcome: String? = null,
+    val notes: String? = null,
+    @SerialName("created_at") val createdAt: String
+)
+
+@Serializable
+data class LeadDetailResponse(
+    val id: Int,
+    @SerialName("first_name") val firstName: String,
+    @SerialName("last_name") val lastName: String? = null,
+    val email: String? = null,
+    val phone: String? = null,
+    @SerialName("phone_2") val phone2: String? = null,
+    @SerialName("infynity_customer") val infynityCustomer: Boolean = false,
+    @SerialName("infynity_customer_id") val infynityCustomerId: String? = null,
+    @SerialName("kseb_consumer_number") val ksebConsumerNumber: String? = null,
+    @SerialName("at_customer_location") val atCustomerLocation: Boolean = false,
+    @SerialName("customer_latitude") val customerLatitude: Double? = null,
+    @SerialName("customer_longitude") val customerLongitude: Double? = null,
+    @SerialName("customer_location_accuracy") val customerLocationAccuracy: Double? = null,
+    @SerialName("customer_location_captured_at") val customerLocationCapturedAt: String? = null,
+    val company: String? = null,
+    val source: String? = null,
+    @SerialName("place_area") val placeArea: String? = null,
+    @SerialName("referred_by") val referredBy: String? = null,
+    val status: String,
+    @SerialName("assigned_to_id") val assignedToId: Int? = null,
+    @SerialName("team_id") val teamId: Int? = null,
+    val notes: String? = null,
+    @SerialName("created_at") val createdAt: String,
+    @SerialName("updated_at") val updatedAt: String,
+    @SerialName("converted_at") val convertedAt: String? = null,
+    @SerialName("lost_reason") val lostReason: String? = null,
+    @SerialName("assigned_to_name") val assignedToName: String? = null,
+    @SerialName("team_name") val teamName: String? = null,
+    @SerialName("product_names") val productNames: List<String> = emptyList(),
+    val history: List<LeadHistoryResponse> = emptyList(),
+    @SerialName("follow_ups") val followUps: List<FollowUpResponse> = emptyList()
+)
