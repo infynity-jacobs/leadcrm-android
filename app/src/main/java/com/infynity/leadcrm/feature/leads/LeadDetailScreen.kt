@@ -9,11 +9,15 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Call
+import androidx.compose.material.icons.filled.Email
+import androidx.compose.material.icons.filled.Message
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
@@ -24,10 +28,13 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import android.content.Intent
+import android.net.Uri
 import java.time.LocalDateTime
 import java.time.OffsetDateTime
 import java.time.ZoneId
@@ -136,6 +143,14 @@ private fun LeadDetailContent(
                 DetailText("Phone", lead.phone)
                 DetailText("Phone 2", lead.phone2)
                 DetailText("Email", lead.email)
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                LeadContactActions(
+                    phone = lead.phone,
+                    phone2 = lead.phone2,
+                    email = lead.email
+                )
             }
         }
 
@@ -230,6 +245,112 @@ private fun LeadDetailContent(
         item {
             Spacer(modifier = Modifier.height(16.dp))
         }
+    }
+}
+
+@Composable
+private fun LeadContactActions(
+    phone: String?,
+    phone2: String?,
+    email: String?
+) {
+    val context = LocalContext.current
+
+    Column(
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        phone?.takeIf { it.isNotBlank() }?.let { number ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Button(
+                    onClick = {
+                        val intent = Intent(
+                            Intent.ACTION_DIAL,
+                            Uri.parse("tel:${Uri.encode(number)}")
+                        )
+                        context.startActivity(intent)
+                    },
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Call,
+                        contentDescription = "Call"
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Call")
+                }
+
+                Button(
+                    onClick = {
+                        val intent = Intent(
+                            Intent.ACTION_VIEW,
+                            Uri.parse("https://wa.me/${formatWhatsAppNumber(number)}")
+                        )
+                        context.startActivity(intent)
+                    },
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Message,
+                        contentDescription = "WhatsApp"
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("WhatsApp")
+                }
+            }
+        }
+
+        phone2?.takeIf { it.isNotBlank() }?.let { number ->
+            Button(
+                onClick = {
+                    val intent = Intent(
+                        Intent.ACTION_DIAL,
+                        Uri.parse("tel:${Uri.encode(number)}")
+                    )
+                    context.startActivity(intent)
+                },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Call,
+                    contentDescription = "Call phone 2"
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text("Call Phone 2")
+            }
+        }
+
+        email?.takeIf { it.isNotBlank() }?.let { address ->
+            Button(
+                onClick = {
+                    val intent = Intent(
+                        Intent.ACTION_SENDTO,
+                        Uri.parse("mailto:${Uri.encode(address)}")
+                    )
+                    context.startActivity(intent)
+                },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Email,
+                    contentDescription = "Email"
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text("Email")
+            }
+        }
+    }
+}
+
+private fun formatWhatsAppNumber(number: String): String {
+    val digits = number.filter { it.isDigit() }
+
+    return when {
+        digits.length == 10 -> "91$digits"
+        digits.startsWith("91") && digits.length == 12 -> digits
+        else -> digits
     }
 }
 
