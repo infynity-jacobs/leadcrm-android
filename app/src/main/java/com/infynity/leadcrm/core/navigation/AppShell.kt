@@ -12,8 +12,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.infynity.leadcrm.LeadCrmApplication
 import com.infynity.leadcrm.core.network.UserResponse
 import com.infynity.leadcrm.feature.home.HomeScreen
+import com.infynity.leadcrm.feature.home.HomeViewModel
+import com.infynity.leadcrm.feature.home.HomeViewModelFactory
 
 @Composable
 fun AppShell(
@@ -23,6 +28,14 @@ fun AppShell(
     var currentDestination by remember {
         mutableStateOf(AppDestination.HOME)
     }
+
+    val application = LocalContext.current.applicationContext as LeadCrmApplication
+
+    val homeViewModel: HomeViewModel = viewModel(
+        factory = HomeViewModelFactory(
+            application.appContainer.dashboardRepository
+        )
+    )
 
     Scaffold(
         bottomBar = {
@@ -44,6 +57,7 @@ fun AppShell(
                 AppDestination.HOME -> {
                     HomeScreen(
                         user = user,
+                        viewModel = homeViewModel,
                         onLogout = onLogout
                     )
                 }

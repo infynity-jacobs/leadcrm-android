@@ -5,6 +5,7 @@ import com.infynity.leadcrm.core.network.LeadCrmApi
 import com.infynity.leadcrm.core.network.NetworkClient
 import com.infynity.leadcrm.core.security.SessionManager
 import com.infynity.leadcrm.data.repository.AuthRepository
+import com.infynity.leadcrm.data.repository.DashboardRepository
 
 class AppContainer(context: Context) {
 
@@ -20,5 +21,9 @@ class AppContainer(context: Context) {
 
     val authRepository: AuthRepository by lazy {
         AuthRepository(api, sessionManager)
+    }
+
+    val dashboardRepository: DashboardRepository by lazy {
+        DashboardRepository(api)
     }
 }
