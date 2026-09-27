@@ -36,6 +36,33 @@ data class TaskResponse(
 )
 
 @Serializable
+data class TaskUpdateRequest(
+    val title: String? = null,
+    val description: String? = null,
+    @SerialName("status_id") val statusId: Int? = null,
+    val priority: String? = null,
+    @SerialName("task_type") val taskType: String? = null,
+    @SerialName("lead_id") val leadId: Int? = null,
+    @SerialName("assigned_to_id") val assignedToId: Int? = null,
+    @SerialName("team_id") val teamId: Int? = null,
+    @SerialName("start_date") val startDate: String? = null,
+    @SerialName("due_date") val dueDate: String? = null
+)
+
+@Serializable
+data class TaskStatusResponse(
+    val id: Int,
+    val name: String,
+    val key: String,
+    val description: String? = null,
+    @SerialName("display_order") val displayOrder: Int = 0,
+    @SerialName("is_active") val isActive: Boolean = true,
+    @SerialName("is_closed") val isClosed: Boolean = false,
+    @SerialName("created_at") val createdAt: String,
+    @SerialName("updated_at") val updatedAt: String
+)
+
+@Serializable
 data class CalendarEventListResponse(
     val total: Int,
     val items: List<CalendarEventResponse>

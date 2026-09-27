@@ -6,10 +6,14 @@ import com.infynity.leadcrm.core.network.models.LeadListResponse
 import com.infynity.leadcrm.core.network.models.LeadResponse
 import com.infynity.leadcrm.core.network.models.UpdateLeadRequest
 import com.infynity.leadcrm.core.network.models.TaskListResponse
+import com.infynity.leadcrm.core.network.models.TaskResponse
+import com.infynity.leadcrm.core.network.models.TaskUpdateRequest
+import com.infynity.leadcrm.core.network.models.TaskStatusResponse
 import retrofit2.http.Body
 import retrofit2.http.Field
 import retrofit2.http.FormUrlEncoded
 import retrofit2.http.GET
+import retrofit2.http.PATCH
 import retrofit2.http.POST
 import retrofit2.http.PUT
 import retrofit2.http.Path
@@ -29,6 +33,20 @@ interface LeadCrmApi {
 
     @GET("tasks")
     suspend fun getTasks(): TaskListResponse
+
+    @GET("task-statuses")
+    suspend fun getTaskStatuses(): List<TaskStatusResponse>
+
+    @GET("tasks/{taskId}")
+    suspend fun getTask(
+        @Path("taskId") taskId: Int
+    ): TaskResponse
+
+    @PATCH("tasks/{taskId}")
+    suspend fun updateTask(
+        @Path("taskId") taskId: Int,
+        @Body request: TaskUpdateRequest
+    ): TaskResponse
 
     @GET("calendar/events")
     suspend fun getCalendarEvents(

@@ -7,6 +7,7 @@ import com.infynity.leadcrm.core.security.SessionManager
 import com.infynity.leadcrm.data.repository.AuthRepository
 import com.infynity.leadcrm.data.repository.DashboardRepository
 import com.infynity.leadcrm.data.repository.LeadRepository
+import com.infynity.leadcrm.data.repository.TaskRepository
 
 class AppContainer(context: Context) {
 
@@ -30,5 +31,9 @@ class AppContainer(context: Context) {
 
     val leadRepository: LeadRepository by lazy {
         LeadRepository(api)
+    }
+
+    val taskRepository: TaskRepository by lazy {
+        TaskRepository(api)
     }
 }

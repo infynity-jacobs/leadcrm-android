@@ -26,6 +26,15 @@ import com.infynity.leadcrm.feature.leads.LeadEditViewModelFactory
 import com.infynity.leadcrm.feature.leads.LeadsScreen
 import com.infynity.leadcrm.feature.leads.LeadsViewModel
 import com.infynity.leadcrm.feature.leads.LeadsViewModelFactory
+import com.infynity.leadcrm.feature.tasks.TaskDetailScreen
+import com.infynity.leadcrm.feature.tasks.TaskDetailViewModel
+import com.infynity.leadcrm.feature.tasks.TaskDetailViewModelFactory
+import com.infynity.leadcrm.feature.tasks.TaskEditScreen
+import com.infynity.leadcrm.feature.tasks.TaskEditViewModel
+import com.infynity.leadcrm.feature.tasks.TaskEditViewModelFactory
+import com.infynity.leadcrm.feature.tasks.TasksScreen
+import com.infynity.leadcrm.feature.tasks.TasksViewModel
+import com.infynity.leadcrm.feature.tasks.TasksViewModelFactory
 import com.infynity.leadcrm.feature.home.HomeViewModel
 import com.infynity.leadcrm.feature.home.HomeViewModelFactory
 
@@ -46,6 +55,14 @@ fun AppShell(
         mutableStateOf<Int?>(null)
     }
 
+    var selectedTaskId by remember {
+        mutableStateOf<Int?>(null)
+    }
+
+    var editingTaskId by remember {
+        mutableStateOf<Int?>(null)
+    }
+
     val application = LocalContext.current.applicationContext as LeadCrmApplication
 
     val homeViewModel: HomeViewModel = viewModel(
@@ -59,6 +76,32 @@ fun AppShell(
             application.appContainer.leadRepository
         )
     )
+
+    val tasksViewModel: TasksViewModel = viewModel(
+        factory = TasksViewModelFactory(
+            application.appContainer.taskRepository
+        )
+    )
+
+    val taskDetailViewModel: TaskDetailViewModel? = selectedTaskId?.let { taskId ->
+        viewModel(
+            key = "task-detail-$taskId",
+            factory = TaskDetailViewModelFactory(
+                application.appContainer.taskRepository,
+                taskId
+            )
+        )
+    }
+
+    val taskEditViewModel: TaskEditViewModel? = editingTaskId?.let { taskId ->
+        viewModel(
+            key = "task-edit-$taskId",
+            factory = TaskEditViewModelFactory(
+                application.appContainer.taskRepository,
+                taskId
+            )
+        )
+    }
 
     val leadDetailViewModel: LeadDetailViewModel? = selectedLeadId?.let { leadId ->
         viewModel(
@@ -135,7 +178,32 @@ fun AppShell(
                 }
 
                 AppDestination.TASKS -> {
-                    PlaceholderScreen(title = "Tasks")
+                    if (editingTaskId != null && taskEditViewModel != null) {
+                        TaskEditScreen(
+                            viewModel = taskEditViewModel,
+                            onBack = {
+                                editingTaskId = null
+                                taskDetailViewModel?.refresh()
+                            }
+                        )
+                    } else if (selectedTaskId != null && taskDetailViewModel != null) {
+                        TaskDetailScreen(
+                            viewModel = taskDetailViewModel,
+                            onBack = {
+                                selectedTaskId = null
+                            },
+                            onEdit = {
+                                editingTaskId = selectedTaskId
+                            }
+                        )
+                    } else {
+                        TasksScreen(
+                            viewModel = tasksViewModel,
+                            onTaskSelected = { taskId ->
+                                selectedTaskId = taskId
+                            }
+                        )
+                    }
                 }
 
                 AppDestination.CALENDAR -> {
