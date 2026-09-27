@@ -168,3 +168,20 @@ data class LeadDetailResponse(
     val history: List<LeadHistoryResponse> = emptyList(),
     @SerialName("follow_ups") val followUps: List<FollowUpResponse> = emptyList()
 )
+
+@Serializable
+data class UpdateLeadRequest(
+    @SerialName("first_name") val firstName: String,
+    @SerialName("last_name") val lastName: String? = null,
+    val email: String? = null,
+    val phone: String? = null,
+    @SerialName("phone_2") val phone2: String? = null,
+    @SerialName("infynity_customer") val infynityCustomer: Boolean = false,
+    @SerialName("infynity_customer_id") val infynityCustomerId: String? = null,
+    @SerialName("kseb_consumer_number") val ksebConsumerNumber: String? = null,
+    val company: String? = null,
+    val source: String? = null,
+    @SerialName("place_area") val placeArea: String? = null,
+    @SerialName("referred_by") val referredBy: String? = null,
+    val notes: String? = null
+)

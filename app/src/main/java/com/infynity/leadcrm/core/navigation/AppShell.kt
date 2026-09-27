@@ -20,6 +20,9 @@ import com.infynity.leadcrm.feature.home.HomeScreen
 import com.infynity.leadcrm.feature.leads.LeadDetailScreen
 import com.infynity.leadcrm.feature.leads.LeadDetailViewModel
 import com.infynity.leadcrm.feature.leads.LeadDetailViewModelFactory
+import com.infynity.leadcrm.feature.leads.EditLeadScreen
+import com.infynity.leadcrm.feature.leads.LeadEditViewModel
+import com.infynity.leadcrm.feature.leads.LeadEditViewModelFactory
 import com.infynity.leadcrm.feature.leads.LeadsScreen
 import com.infynity.leadcrm.feature.leads.LeadsViewModel
 import com.infynity.leadcrm.feature.leads.LeadsViewModelFactory
@@ -36,6 +39,10 @@ fun AppShell(
     }
 
     var selectedLeadId by remember {
+        mutableStateOf<Int?>(null)
+    }
+
+    var editingLeadId by remember {
         mutableStateOf<Int?>(null)
     }
 
@@ -57,6 +64,16 @@ fun AppShell(
         viewModel(
             key = "lead-detail-$leadId",
             factory = LeadDetailViewModelFactory(
+                application.appContainer.leadRepository,
+                leadId
+            )
+        )
+    }
+
+    val leadEditViewModel: LeadEditViewModel? = editingLeadId?.let { leadId ->
+        viewModel(
+            key = "lead-edit-$leadId",
+            factory = LeadEditViewModelFactory(
                 application.appContainer.leadRepository,
                 leadId
             )
@@ -89,11 +106,22 @@ fun AppShell(
                 }
 
                 AppDestination.LEADS -> {
-                    if (selectedLeadId != null && leadDetailViewModel != null) {
+                    if (editingLeadId != null && leadEditViewModel != null) {
+                        EditLeadScreen(
+                            viewModel = leadEditViewModel,
+                            onBack = {
+                                editingLeadId = null
+                                leadDetailViewModel?.refresh()
+                            }
+                        )
+                    } else if (selectedLeadId != null && leadDetailViewModel != null) {
                         LeadDetailScreen(
                             viewModel = leadDetailViewModel,
                             onBack = {
                                 selectedLeadId = null
+                            },
+                            onEdit = {
+                                editingLeadId = selectedLeadId
                             }
                         )
                     } else {

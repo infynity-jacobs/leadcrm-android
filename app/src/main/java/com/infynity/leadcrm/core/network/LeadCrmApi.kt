@@ -3,11 +3,15 @@ package com.infynity.leadcrm.core.network
 import com.infynity.leadcrm.core.network.models.CalendarEventListResponse
 import com.infynity.leadcrm.core.network.models.LeadDetailResponse
 import com.infynity.leadcrm.core.network.models.LeadListResponse
+import com.infynity.leadcrm.core.network.models.LeadResponse
+import com.infynity.leadcrm.core.network.models.UpdateLeadRequest
 import com.infynity.leadcrm.core.network.models.TaskListResponse
+import retrofit2.http.Body
 import retrofit2.http.Field
 import retrofit2.http.FormUrlEncoded
 import retrofit2.http.GET
 import retrofit2.http.POST
+import retrofit2.http.PUT
 import retrofit2.http.Path
 import retrofit2.http.Query
 
@@ -51,5 +55,11 @@ interface LeadCrmApi {
     suspend fun getLead(
         @Path("leadId") leadId: Int
     ): LeadDetailResponse
+
+    @PUT("leads/{leadId}")
+    suspend fun updateLead(
+        @Path("leadId") leadId: Int,
+        @Body request: UpdateLeadRequest
+    ): LeadResponse
 
 }

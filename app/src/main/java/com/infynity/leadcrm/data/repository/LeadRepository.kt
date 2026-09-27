@@ -3,6 +3,8 @@ package com.infynity.leadcrm.data.repository
 import com.infynity.leadcrm.core.network.LeadCrmApi
 import com.infynity.leadcrm.core.network.models.LeadDetailResponse
 import com.infynity.leadcrm.core.network.models.LeadListResponse
+import com.infynity.leadcrm.core.network.models.LeadResponse
+import com.infynity.leadcrm.core.network.models.UpdateLeadRequest
 
 class LeadRepository(
     private val api: LeadCrmApi
@@ -23,5 +25,15 @@ class LeadRepository(
 
     suspend fun getLead(leadId: Int): LeadDetailResponse {
         return api.getLead(leadId)
+    }
+
+    suspend fun updateLead(
+        leadId: Int,
+        request: UpdateLeadRequest
+    ): LeadResponse {
+        return api.updateLead(
+            leadId = leadId,
+            request = request
+        )
     }
 }

@@ -17,6 +17,7 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.Email
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Message
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -47,7 +48,8 @@ import com.infynity.leadcrm.core.network.models.LeadHistoryResponse
 @Composable
 fun LeadDetailScreen(
     viewModel: LeadDetailViewModel,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onEdit: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
@@ -73,6 +75,13 @@ fun LeadDetailScreen(
                 fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.weight(1f)
             )
+
+            IconButton(onClick = onEdit) {
+                Icon(
+                    imageVector = Icons.Default.Edit,
+                    contentDescription = "Edit lead"
+                )
+            }
 
             IconButton(onClick = viewModel::refresh) {
                 Icon(
