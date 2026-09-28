@@ -38,6 +38,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.infynity.leadcrm.core.network.models.CalendarEventCreateRequest
 import com.infynity.leadcrm.core.network.models.LeadResponse
+import com.infynity.leadcrm.core.network.models.TaskResponse
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
@@ -82,6 +83,8 @@ fun CalendarEventCreateScreen(
 
     var selectedLead by remember { mutableStateOf<LeadResponse?>(null) }
     var leadSearchQuery by remember { mutableStateOf("") }
+    var selectedTask by remember { mutableStateOf<TaskResponse?>(null) }
+    var taskSearchQuery by remember { mutableStateOf("") }
 
     var validationError by remember { mutableStateOf<String?>(null) }
 
@@ -282,6 +285,136 @@ fun CalendarEventCreateScreen(
             }
         }
 
+
+        CalendarCreateSectionCard(title = "Task") {
+            if (selectedTask == null) {
+                OutlinedTextField(
+                    value = taskSearchQuery,
+                    onValueChange = {
+                        taskSearchQuery = it
+                        viewModel.searchTasks(it)
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("Task") },
+                    placeholder = { Text("Search for a task") },
+                    enabled = !state.isSaving,
+                    singleLine = true
+                )
+
+                if (state.isLoadingTasks) {
+                    CircularProgressIndicator()
+                }
+
+                state.taskSearchError?.let {
+                    Text(
+                        text = it,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+
+                state.taskSearchResults.forEach { task ->
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                selectedTask = task
+                                taskSearchQuery = ""
+                            }
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(2.dp)
+                        ) {
+                            Text(
+                                text = task.title,
+                                style = MaterialTheme.typography.titleSmall
+                            )
+
+                            task.statusName?.takeIf { it.isNotBlank() }?.let {
+                                Text(
+                                    text = "Status: $it",
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
+                            }
+
+                            task.leadName?.takeIf { it.isNotBlank() }?.let {
+                                Text(
+                                    text = "Lead: $it",
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
+                            }
+
+                            task.dueDate?.takeIf { it.isNotBlank() }?.let {
+                                Text(
+                                    text = "Due: $it",
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
+                            }
+                        }
+                    }
+                }
+
+                if (!state.isLoadingTasks &&
+                    taskSearchQuery.isNotBlank() &&
+                    state.taskSearchResults.isEmpty() &&
+                    state.taskSearchError == null
+                ) {
+                    Text("No tasks found.")
+                }
+            } else {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Text(
+                        text = selectedTask?.title.orEmpty(),
+                        style = MaterialTheme.typography.titleSmall
+                    )
+
+                    selectedTask?.statusName?.takeIf { it.isNotBlank() }?.let {
+                        Text(
+                            text = "Status: $it",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
+
+                    selectedTask?.leadName?.takeIf { it.isNotBlank() }?.let {
+                        Text(
+                            text = "Lead: $it",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        TextButton(
+                            onClick = {
+                                selectedTask = null
+                                taskSearchQuery = ""
+                                viewModel.searchTasks("")
+                            },
+                            enabled = !state.isSaving
+                        ) {
+                            Text("Change")
+                        }
+
+                        TextButton(
+                            onClick = {
+                                selectedTask = null
+                                taskSearchQuery = ""
+                                viewModel.searchTasks("")
+                            },
+                            enabled = !state.isSaving
+                        ) {
+                            Text("Clear")
+                        }
+                    }
+                }
+            }
+        }
+
         CalendarCreateSectionCard(title = "Schedule") {
             CalendarCreateDateTimeField(
                 label = "Start",
@@ -389,6 +522,7 @@ fun CalendarEventCreateScreen(
                                 allDay = allDay,
                                 location = location.trim().ifBlank { null },
                                 leadId = selectedLead?.id,
+                                taskId = selectedTask?.id,
                                 outcome = outcome.trim().ifBlank { null }
                             )
                         )

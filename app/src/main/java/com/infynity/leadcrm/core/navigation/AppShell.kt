@@ -154,7 +154,8 @@ fun AppShell(
                 key = "calendar-event-create-$calendarEventCreateSession",
                 factory = CalendarEventCreateViewModelFactory(
                     application.appContainer.calendarRepository,
-                    application.appContainer.leadRepository
+                    application.appContainer.leadRepository,
+                    application.appContainer.taskRepository
                 )
             )
         } else {
