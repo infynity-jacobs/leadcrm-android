@@ -37,6 +37,12 @@ import com.infynity.leadcrm.feature.tasks.TasksViewModel
 import com.infynity.leadcrm.feature.tasks.TasksViewModelFactory
 import com.infynity.leadcrm.feature.home.HomeViewModel
 import com.infynity.leadcrm.feature.home.HomeViewModelFactory
+import com.infynity.leadcrm.feature.calendar.CalendarEventDetailScreen
+import com.infynity.leadcrm.feature.calendar.CalendarEventDetailViewModel
+import com.infynity.leadcrm.feature.calendar.CalendarEventDetailViewModelFactory
+import com.infynity.leadcrm.feature.calendar.CalendarEventEditScreen
+import com.infynity.leadcrm.feature.calendar.CalendarEventEditViewModel
+import com.infynity.leadcrm.feature.calendar.CalendarEventEditViewModelFactory
 import com.infynity.leadcrm.feature.calendar.CalendarScreen
 import com.infynity.leadcrm.feature.calendar.CalendarViewModel
 import com.infynity.leadcrm.feature.calendar.CalendarViewModelFactory
@@ -63,6 +69,14 @@ fun AppShell(
     }
 
     var editingTaskId by remember {
+        mutableStateOf<Int?>(null)
+    }
+
+    var selectedCalendarEventId by remember {
+        mutableStateOf<Int?>(null)
+    }
+
+    var editingCalendarEventId by remember {
         mutableStateOf<Int?>(null)
     }
 
@@ -111,6 +125,28 @@ fun AppShell(
             )
         )
     }
+
+    val calendarEventDetailViewModel: CalendarEventDetailViewModel? =
+        selectedCalendarEventId?.let { eventId ->
+            viewModel(
+                key = "calendar-event-detail-$eventId",
+                factory = CalendarEventDetailViewModelFactory(
+                    application.appContainer.calendarRepository,
+                    eventId
+                )
+            )
+        }
+
+    val calendarEventEditViewModel: CalendarEventEditViewModel? =
+        editingCalendarEventId?.let { eventId ->
+            viewModel(
+                key = "calendar-event-edit-$eventId",
+                factory = CalendarEventEditViewModelFactory(
+                    application.appContainer.calendarRepository,
+                    eventId
+                )
+            )
+        }
 
     val leadDetailViewModel: LeadDetailViewModel? = selectedLeadId?.let { leadId ->
         viewModel(
@@ -216,9 +252,36 @@ fun AppShell(
                 }
 
                 AppDestination.CALENDAR -> {
-                    CalendarScreen(
-                        viewModel = calendarViewModel
-                    )
+                    if (editingCalendarEventId != null &&
+                        calendarEventEditViewModel != null
+                    ) {
+                        CalendarEventEditScreen(
+                            viewModel = calendarEventEditViewModel,
+                            onBack = {
+                                editingCalendarEventId = null
+                                calendarEventDetailViewModel?.refresh()
+                            }
+                        )
+                    } else if (selectedCalendarEventId != null &&
+                        calendarEventDetailViewModel != null
+                    ) {
+                        CalendarEventDetailScreen(
+                            viewModel = calendarEventDetailViewModel,
+                            onBack = {
+                                selectedCalendarEventId = null
+                            },
+                            onEdit = {
+                                editingCalendarEventId = selectedCalendarEventId
+                            }
+                        )
+                    } else {
+                        CalendarScreen(
+                            viewModel = calendarViewModel,
+                            onEventSelected = { eventId ->
+                                selectedCalendarEventId = eventId
+                            }
+                        )
+                    }
                 }
 
                 AppDestination.MORE -> {
