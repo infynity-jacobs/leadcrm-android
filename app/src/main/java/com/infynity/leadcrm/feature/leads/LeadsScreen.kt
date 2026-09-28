@@ -13,9 +13,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
+import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
@@ -37,7 +39,9 @@ import com.infynity.leadcrm.core.network.models.LeadResponse
 @Composable
 fun LeadsScreen(
     viewModel: LeadsViewModel,
-    onLeadSelected: (Int) -> Unit
+    canCreateLead: Boolean,
+    onLeadSelected: (Int) -> Unit,
+    onNewLead: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
@@ -62,6 +66,22 @@ fun LeadsScreen(
                         contentDescription = "Refresh leads"
                     )
                 }
+            }
+        },
+        floatingActionButton = {
+            if (canCreateLead) {
+                ExtendedFloatingActionButton(
+                    onClick = onNewLead,
+                    icon = {
+                        Icon(
+                            imageVector = Icons.Default.Add,
+                            contentDescription = null
+                        )
+                    },
+                    text = {
+                        Text("New Lead")
+                    }
+                )
             }
         }
     ) { innerPadding ->

@@ -130,6 +130,16 @@ data class CalendarEventResponse(
     @SerialName("created_by_name") val createdByName: String? = null
 )
 
+
+@Serializable
+data class LeadAreaResponse(
+    val id: Int,
+    val name: String,
+    val active: Boolean,
+    @SerialName("created_at") val createdAt: String,
+    @SerialName("updated_at") val updatedAt: String
+)
+
 @Serializable
 data class LeadListResponse(
     val total: Int,
@@ -244,4 +254,30 @@ data class UpdateLeadRequest(
     @SerialName("place_area") val placeArea: String? = null,
     @SerialName("referred_by") val referredBy: String? = null,
     val notes: String? = null
+)
+
+
+@Serializable
+data class CreateLeadRequest(
+    @SerialName("first_name") val firstName: String,
+    @SerialName("last_name") val lastName: String? = null,
+    val email: String? = null,
+    val phone: String? = null,
+    @SerialName("phone_2") val phone2: String? = null,
+    @SerialName("infynity_customer") val infynityCustomer: Boolean = false,
+    @SerialName("infynity_customer_id") val infynityCustomerId: String? = null,
+    @SerialName("kseb_consumer_number") val ksebConsumerNumber: String? = null,
+    @SerialName("at_customer_location") val atCustomerLocation: Boolean = false,
+    @SerialName("customer_latitude") val customerLatitude: Double? = null,
+    @SerialName("customer_longitude") val customerLongitude: Double? = null,
+    @SerialName("customer_location_accuracy") val customerLocationAccuracy: Double? = null,
+    @SerialName("customer_location_captured_at") val customerLocationCapturedAt: String? = null,
+    val company: String? = null,
+    val source: String? = null,
+    @SerialName("place_area") val placeArea: String? = null,
+    @SerialName("referred_by") val referredBy: String? = null,
+    val notes: String? = null,
+    @SerialName("assigned_to_id") val assignedToId: Int? = null,
+    @SerialName("team_id") val teamId: Int? = null,
+    val status: String? = "new"
 )

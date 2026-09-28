@@ -15,10 +15,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.infynity.leadcrm.LeadCrmApplication
+import com.infynity.leadcrm.core.auth.LeadPermissions
 import com.infynity.leadcrm.core.network.UserResponse
 import com.infynity.leadcrm.feature.home.HomeScreen
+import com.infynity.leadcrm.feature.leads.LeadCreateScreen
 import com.infynity.leadcrm.feature.leads.LeadDetailScreen
+import com.infynity.leadcrm.feature.leads.LeadCreateViewModel
 import com.infynity.leadcrm.feature.leads.LeadDetailViewModel
+import com.infynity.leadcrm.feature.leads.LeadCreateViewModelFactory
 import com.infynity.leadcrm.feature.leads.LeadDetailViewModelFactory
 import com.infynity.leadcrm.feature.leads.EditLeadScreen
 import com.infynity.leadcrm.feature.leads.LeadEditViewModel
@@ -65,6 +69,14 @@ fun AppShell(
 
     var editingLeadId by remember {
         mutableStateOf<Int?>(null)
+    }
+
+    var creatingLead by remember {
+        mutableStateOf(false)
+    }
+
+    var leadCreateSession by remember {
+        mutableStateOf(0)
     }
 
     var selectedTaskId by remember {
@@ -173,6 +185,18 @@ fun AppShell(
             )
         }
 
+    val leadCreateViewModel: LeadCreateViewModel? =
+        if (creatingLead) {
+            viewModel(
+                key = "lead-create-$leadCreateSession",
+                factory = LeadCreateViewModelFactory(
+                    application.appContainer.leadRepository
+                )
+            )
+        } else {
+            null
+        }
+
     val leadDetailViewModel: LeadDetailViewModel? = selectedLeadId?.let { leadId ->
         viewModel(
             key = "lead-detail-$leadId",
@@ -219,7 +243,15 @@ fun AppShell(
                 }
 
                 AppDestination.LEADS -> {
-                    if (editingLeadId != null && leadEditViewModel != null) {
+                    if (creatingLead && leadCreateViewModel != null) {
+                        LeadCreateScreen(
+                            viewModel = leadCreateViewModel,
+                            onBack = {
+                                creatingLead = false
+                                leadsViewModel.refresh()
+                            }
+                        )
+                    } else if (editingLeadId != null && leadEditViewModel != null) {
                         EditLeadScreen(
                             viewModel = leadEditViewModel,
                             onBack = {
@@ -230,6 +262,7 @@ fun AppShell(
                     } else if (selectedLeadId != null && leadDetailViewModel != null) {
                         LeadDetailScreen(
                             viewModel = leadDetailViewModel,
+                            canDeleteLead = LeadPermissions.canDeleteLead(user.role),
                             onBack = {
                                 selectedLeadId = null
                             },
@@ -240,8 +273,13 @@ fun AppShell(
                     } else {
                         LeadsScreen(
                             viewModel = leadsViewModel,
+                            canCreateLead = LeadPermissions.canCreateLead(user.role),
                             onLeadSelected = { leadId ->
                                 selectedLeadId = leadId
+                            },
+                            onNewLead = {
+                                leadCreateSession += 1
+                                creatingLead = true
                             }
                         )
                     }

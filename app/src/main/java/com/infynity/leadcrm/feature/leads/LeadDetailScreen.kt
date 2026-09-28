@@ -19,16 +19,23 @@ import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Message
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -48,10 +55,12 @@ import com.infynity.leadcrm.core.network.models.LeadHistoryResponse
 @Composable
 fun LeadDetailScreen(
     viewModel: LeadDetailViewModel,
+    canDeleteLead: Boolean,
     onBack: () -> Unit,
     onEdit: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    var showDeleteConfirmation by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier.fillMaxSize()
@@ -76,19 +85,76 @@ fun LeadDetailScreen(
                 modifier = Modifier.weight(1f)
             )
 
-            IconButton(onClick = onEdit) {
+            if (canDeleteLead) {
+                IconButton(
+                    onClick = { showDeleteConfirmation = true },
+                    enabled = !uiState.isDeleting
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = "Delete lead"
+                    )
+                }
+            }
+
+            IconButton(
+                onClick = onEdit,
+                enabled = !uiState.isDeleting
+            ) {
                 Icon(
                     imageVector = Icons.Default.Edit,
                     contentDescription = "Edit lead"
                 )
             }
 
-            IconButton(onClick = viewModel::refresh) {
+            IconButton(
+                onClick = viewModel::refresh,
+                enabled = !uiState.isDeleting
+            ) {
                 Icon(
                     imageVector = Icons.Default.Refresh,
                     contentDescription = "Refresh lead"
                 )
             }
+        }
+
+        if (uiState.deleteSuccessful) {
+            LaunchedEffect(Unit) {
+                viewModel.clearDeleteSuccess()
+                onBack()
+            }
+        }
+
+        if (showDeleteConfirmation && !uiState.isDeleting) {
+            AlertDialog(
+                onDismissRequest = { showDeleteConfirmation = false },
+                title = {
+                    Text("Delete Lead?")
+                },
+                text = {
+                    Text(
+                        "This will permanently delete this lead and its associated documents. " +
+                            "This action cannot be undone."
+                    )
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            showDeleteConfirmation = false
+                            viewModel.deleteLead()
+                        }
+                    ) {
+                        Text("Delete")
+                    }
+                },
+                dismissButton = {
+                    TextButton(
+                        onClick = { showDeleteConfirmation = false }
+                    ) {
+                        Text("Cancel")
+                    }
+                }
+            )
         }
 
         when {
@@ -125,6 +191,14 @@ fun LeadDetailScreen(
 
             uiState.lead != null -> {
                 LeadDetailContent(lead = uiState.lead!!)
+
+                if (uiState.isDeleting) {
+                    Text(
+                        text = "Deleting lead...",
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.padding(16.dp)
+                    )
+                }
             }
         }
     }

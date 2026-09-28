@@ -33,6 +33,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.infynity.leadcrm.core.network.models.LeadAreaResponse
 import com.infynity.leadcrm.core.network.models.LeadDetailResponse
 import com.infynity.leadcrm.core.network.models.UpdateLeadRequest
 
@@ -153,6 +154,10 @@ fun EditLeadScreen(
                     onSourceChange = { source = it },
                     placeArea = placeArea,
                     onPlaceAreaChange = { placeArea = it },
+                    areaSearchResults = uiState.areaSearchResults,
+                    isSearchingAreas = uiState.isSearchingAreas,
+                    areaSearchError = uiState.areaSearchError,
+                    onSearchAreas = viewModel::searchAreas,
                     referredBy = referredBy,
                     onReferredByChange = { referredBy = it },
                     infynityCustomer = infynityCustomer,
@@ -209,6 +214,10 @@ private fun EditLeadForm(
     onSourceChange: (String) -> Unit,
     placeArea: String,
     onPlaceAreaChange: (String) -> Unit,
+    areaSearchResults: List<LeadAreaResponse>,
+    isSearchingAreas: Boolean,
+    areaSearchError: String?,
+    onSearchAreas: (String) -> Unit,
     referredBy: String,
     onReferredByChange: (String) -> Unit,
     infynityCustomer: Boolean,
@@ -286,10 +295,13 @@ private fun EditLeadForm(
                     enabled = !isSaving
                 )
 
-                EditTextField(
+                PlaceAreaSelector(
                     value = placeArea,
                     onValueChange = onPlaceAreaChange,
-                    label = "Place / Area",
+                    onSearch = onSearchAreas,
+                    areas = areaSearchResults,
+                    isSearching = isSearchingAreas,
+                    errorMessage = areaSearchError,
                     enabled = !isSaving
                 )
 

@@ -4,7 +4,9 @@ import com.infynity.leadcrm.core.network.models.CalendarEventCreateRequest
 import com.infynity.leadcrm.core.network.models.CalendarEventListResponse
 import com.infynity.leadcrm.core.network.models.CalendarEventResponse
 import com.infynity.leadcrm.core.network.models.CalendarEventUpdateRequest
+import com.infynity.leadcrm.core.network.models.LeadAreaResponse
 import com.infynity.leadcrm.core.network.models.LeadDetailResponse
+import com.infynity.leadcrm.core.network.models.CreateLeadRequest
 import com.infynity.leadcrm.core.network.models.LeadListResponse
 import com.infynity.leadcrm.core.network.models.LeadResponse
 import com.infynity.leadcrm.core.network.models.UpdateLeadRequest
@@ -87,6 +89,12 @@ interface LeadCrmApi {
         @Path("eventId") eventId: Int
     ): Map<String, String>
 
+    @GET("lead-areas")
+    suspend fun getLeadAreas(
+        @Query("active_only") activeOnly: Boolean = true,
+        @Query("search") search: String? = null
+    ): List<LeadAreaResponse>
+
     @GET("leads")
     suspend fun getLeads(
         @Query("page") page: Int = 1,
@@ -107,10 +115,20 @@ interface LeadCrmApi {
         @Path("leadId") leadId: Int
     ): LeadDetailResponse
 
+    @POST("leads")
+    suspend fun createLead(
+        @Body request: CreateLeadRequest
+    ): LeadResponse
+
     @PUT("leads/{leadId}")
     suspend fun updateLead(
         @Path("leadId") leadId: Int,
         @Body request: UpdateLeadRequest
     ): LeadResponse
+
+    @retrofit2.http.DELETE("leads/{leadId}")
+    suspend fun deleteLead(
+        @Path("leadId") leadId: Int
+    ): Map<String, String>
 
 }

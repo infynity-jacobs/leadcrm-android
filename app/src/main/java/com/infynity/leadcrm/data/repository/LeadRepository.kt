@@ -1,6 +1,8 @@
 package com.infynity.leadcrm.data.repository
 
 import com.infynity.leadcrm.core.network.LeadCrmApi
+import com.infynity.leadcrm.core.network.models.CreateLeadRequest
+import com.infynity.leadcrm.core.network.models.LeadAreaResponse
 import com.infynity.leadcrm.core.network.models.LeadDetailResponse
 import com.infynity.leadcrm.core.network.models.LeadListResponse
 import com.infynity.leadcrm.core.network.models.LeadResponse
@@ -23,6 +25,12 @@ class LeadRepository(
         )
     }
 
+    suspend fun getLeadAreas(
+        search: String? = null
+    ): List<LeadAreaResponse> {
+        return api.getLeadAreas(search = search)
+    }
+
     suspend fun getLead(leadId: Int): LeadDetailResponse {
         return api.getLead(leadId)
     }
@@ -35,5 +43,13 @@ class LeadRepository(
             leadId = leadId,
             request = request
         )
+    }
+
+    suspend fun createLead(request: CreateLeadRequest): LeadResponse {
+        return api.createLead(request)
+    }
+
+    suspend fun deleteLead(leadId: Int): Map<String, String> {
+        return api.deleteLead(leadId)
     }
 }
