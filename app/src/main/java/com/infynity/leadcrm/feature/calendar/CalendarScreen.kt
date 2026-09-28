@@ -55,7 +55,8 @@ import java.time.format.DateTimeFormatter
 @Composable
 fun CalendarScreen(
     viewModel: CalendarViewModel,
-    onEventSelected: (Int) -> Unit = {}
+    onEventSelected: (Int) -> Unit = {},
+    onNewEvent: () -> Unit = {}
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val visibleEvents = viewModel.visibleEvents(state)
@@ -71,7 +72,8 @@ fun CalendarScreen(
             onPrevious = viewModel::previousPeriod,
             onToday = viewModel::today,
             onNext = viewModel::nextPeriod,
-            onRefresh = viewModel::refresh
+            onRefresh = viewModel::refresh,
+            onNewEvent = onNewEvent
         )
 
         Spacer(modifier = Modifier.height(8.dp))
@@ -191,7 +193,8 @@ private fun CalendarHeader(
     onPrevious: () -> Unit,
     onToday: () -> Unit,
     onNext: () -> Unit,
-    onRefresh: () -> Unit
+    onRefresh: () -> Unit,
+    onNewEvent: () -> Unit
 ) {
     val formatter = remember {
         DateTimeFormatter.ofPattern("dd MMM yyyy")
@@ -244,7 +247,13 @@ private fun CalendarHeader(
             }
         }
 
-        Row {
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            TextButton(onClick = onNewEvent) {
+                Text("+ New Event")
+            }
+
             IconButton(onClick = onNext) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowForward,

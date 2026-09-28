@@ -37,6 +37,9 @@ import com.infynity.leadcrm.feature.tasks.TasksViewModel
 import com.infynity.leadcrm.feature.tasks.TasksViewModelFactory
 import com.infynity.leadcrm.feature.home.HomeViewModel
 import com.infynity.leadcrm.feature.home.HomeViewModelFactory
+import com.infynity.leadcrm.feature.calendar.CalendarEventCreateScreen
+import com.infynity.leadcrm.feature.calendar.CalendarEventCreateViewModel
+import com.infynity.leadcrm.feature.calendar.CalendarEventCreateViewModelFactory
 import com.infynity.leadcrm.feature.calendar.CalendarEventDetailScreen
 import com.infynity.leadcrm.feature.calendar.CalendarEventDetailViewModel
 import com.infynity.leadcrm.feature.calendar.CalendarEventDetailViewModelFactory
@@ -78,6 +81,14 @@ fun AppShell(
 
     var editingCalendarEventId by remember {
         mutableStateOf<Int?>(null)
+    }
+
+    var creatingCalendarEvent by remember {
+        mutableStateOf(false)
+    }
+
+    var calendarEventCreateSession by remember {
+        mutableStateOf(0)
     }
 
     val application = LocalContext.current.applicationContext as LeadCrmApplication
@@ -135,6 +146,19 @@ fun AppShell(
                     eventId
                 )
             )
+        }
+
+    val calendarEventCreateViewModel: CalendarEventCreateViewModel? =
+        if (creatingCalendarEvent) {
+            viewModel(
+                key = "calendar-event-create-$calendarEventCreateSession",
+                factory = CalendarEventCreateViewModelFactory(
+                    application.appContainer.calendarRepository,
+                    application.appContainer.leadRepository
+                )
+            )
+        } else {
+            null
         }
 
     val calendarEventEditViewModel: CalendarEventEditViewModel? =
@@ -252,7 +276,17 @@ fun AppShell(
                 }
 
                 AppDestination.CALENDAR -> {
-                    if (editingCalendarEventId != null &&
+                    if (creatingCalendarEvent &&
+                        calendarEventCreateViewModel != null
+                    ) {
+                        CalendarEventCreateScreen(
+                            viewModel = calendarEventCreateViewModel,
+                            onBack = {
+                                creatingCalendarEvent = false
+                                calendarViewModel.refresh()
+                            }
+                        )
+                    } else if (editingCalendarEventId != null &&
                         calendarEventEditViewModel != null
                     ) {
                         CalendarEventEditScreen(
@@ -279,6 +313,10 @@ fun AppShell(
                             viewModel = calendarViewModel,
                             onEventSelected = { eventId ->
                                 selectedCalendarEventId = eventId
+                            },
+                            onNewEvent = {
+                                calendarEventCreateSession += 1
+                                creatingCalendarEvent = true
                             }
                         )
                     }
