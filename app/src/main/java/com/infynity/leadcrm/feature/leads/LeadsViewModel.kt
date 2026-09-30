@@ -7,6 +7,8 @@ import com.infynity.leadcrm.data.repository.LeadRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 data class LeadsUiState(
@@ -24,6 +26,7 @@ class LeadsViewModel(
 
     private val _uiState = MutableStateFlow(LeadsUiState())
     val uiState: StateFlow<LeadsUiState> = _uiState.asStateFlow()
+    private var searchJob: Job? = null
 
     init {
         loadLeads()
@@ -63,6 +66,19 @@ class LeadsViewModel(
         _uiState.value = _uiState.value.copy(
             searchQuery = query
         )
+
+        searchJob?.cancel()
+
+        val cleanQuery = query.trim()
+
+        if (cleanQuery.length in 1..2) {
+            return
+        }
+
+        searchJob = viewModelScope.launch {
+            delay(400L)
+            loadLeads()
+        }
     }
 
     fun search() {

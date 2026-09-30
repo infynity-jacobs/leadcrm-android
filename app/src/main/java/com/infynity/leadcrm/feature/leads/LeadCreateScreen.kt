@@ -28,6 +28,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.ui.unit.dp
 import com.infynity.leadcrm.core.network.UserResponse
 import com.infynity.leadcrm.core.network.models.CreateLeadRequest
@@ -266,12 +270,22 @@ fun LeadCreateScreen(
 
             item {
                 LeadCreateSectionCard(title = "Notes") {
+                    val keyboardController = LocalSoftwareKeyboardController.current
+
                     OutlinedTextField(
                         value = notes,
                         onValueChange = { notes = it },
                         modifier = Modifier.fillMaxWidth(),
                         label = { Text("Notes") },
                         minLines = 4,
+                        keyboardOptions = KeyboardOptions(
+                            imeAction = ImeAction.Done
+                        ),
+                        keyboardActions = KeyboardActions(
+                            onDone = {
+                                keyboardController?.hide()
+                            }
+                        ),
                         enabled = !uiState.isSaving
                     )
                 }

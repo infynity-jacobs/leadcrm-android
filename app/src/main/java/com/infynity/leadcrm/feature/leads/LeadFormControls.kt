@@ -7,6 +7,8 @@ import android.location.Location
 import android.location.LocationListener
 import android.location.LocationManager
 import android.os.Bundle
+import android.os.Build
+import android.os.CancellationSignal
 import android.os.Handler
 import android.os.Looper
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -34,6 +36,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import java.time.Instant
 import java.time.format.DateTimeFormatter
+import java.util.concurrent.atomic.AtomicBoolean
 
 @Composable
 fun LeadDropdownField(
@@ -170,22 +173,35 @@ private fun requestCurrentLocation(
     onStatus: (String) -> Unit
 ) {
     val manager = context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
-    val provider = if (finePermission) LocationManager.GPS_PROVIDER else LocationManager.NETWORK_PROVIDER
     try {
-        if (!manager.isProviderEnabled(provider)) {
+        val providers = listOf(LocationManager.NETWORK_PROVIDER, LocationManager.GPS_PROVIDER)
+            .filter { provider ->
+                (finePermission || provider != LocationManager.GPS_PROVIDER) &&
+                    manager.isProviderEnabled(provider)
+            }
+        if (providers.isEmpty()) {
             onStatus("Unable to capture location. Turn on location services and try again.")
             return
         }
         onStatus("Requesting your current location…")
         val handler = Handler(Looper.getMainLooper())
-        var listener: LocationListener? = null
-        val timeout = Runnable {
-            listener?.let(manager::removeUpdates)
-            onStatus("Location request timed out. Please try again.")
+        val completed = AtomicBoolean(false)
+        val listeners = mutableListOf<LocationListener>()
+        val cancellationSignals = mutableListOf<CancellationSignal>()
+        fun stopRequests() {
+            listeners.forEach(manager::removeUpdates)
+            cancellationSignals.forEach(CancellationSignal::cancel)
         }
-        listener = object : LocationListener {
-            override fun onLocationChanged(location: Location) {
+        val timeout = Runnable {
+            if (completed.compareAndSet(false, true)) {
+                stopRequests()
+                onStatus("Location request timed out. Please try again.")
+            }
+        }
+        fun deliverLocation(location: Location) {
+            if (completed.compareAndSet(false, true)) {
                 handler.removeCallbacks(timeout)
+                stopRequests()
                 onLocation(
                     CustomerLocationData(
                         latitude = "%.7f".format(java.util.Locale.US, location.latitude),
@@ -196,16 +212,30 @@ private fun requestCurrentLocation(
                 )
                 onStatus("Location captured. Accuracy: %.1f metres".format(java.util.Locale.US, location.accuracy))
             }
-            override fun onProviderEnabled(provider: String) = Unit
-            override fun onProviderDisabled(provider: String) {
-                handler.removeCallbacks(timeout)
-                onStatus("Unable to capture location. The location provider is disabled.")
-            }
-            @Suppress("DEPRECATION")
-            override fun onStatusChanged(provider: String?, status: Int, extras: Bundle?) = Unit
         }
-        manager.requestSingleUpdate(provider, requireNotNull(listener), Looper.getMainLooper())
-        handler.postDelayed(timeout, 15_000L)
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            providers.forEach { provider ->
+                val cancellation = CancellationSignal()
+                cancellationSignals += cancellation
+                manager.getCurrentLocation(provider, cancellation, { command -> handler.post(command) }) { location ->
+                    if (location != null) deliverLocation(location)
+                }
+            }
+        } else {
+            providers.forEach { provider ->
+                val listener = object : LocationListener {
+                    override fun onLocationChanged(location: Location) = deliverLocation(location)
+                    override fun onProviderEnabled(provider: String) = Unit
+                    override fun onProviderDisabled(provider: String) = Unit
+                    @Suppress("DEPRECATION")
+                    override fun onStatusChanged(provider: String?, status: Int, extras: Bundle?) = Unit
+                }
+                listeners += listener
+                manager.requestLocationUpdates(provider, 0L, 0f, listener, Looper.getMainLooper())
+            }
+        }
+        handler.postDelayed(timeout, 30_000L)
     } catch (_: SecurityException) {
         onStatus("Location permission was denied. Allow access and try again.")
     } catch (_: IllegalArgumentException) {
