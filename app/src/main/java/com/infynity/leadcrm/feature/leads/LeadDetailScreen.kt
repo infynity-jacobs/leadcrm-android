@@ -88,7 +88,8 @@ fun LeadDetailScreen(
     canDeleteLead: Boolean,
     onBack: () -> Unit,
     onEdit: () -> Unit,
-    onTaskSelected: (Int) -> Unit
+    onTaskSelected: (Int) -> Unit,
+    onCreateTask: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var showDeleteConfirmation by remember { mutableStateOf(false) }
@@ -396,7 +397,8 @@ fun LeadDetailScreen(
                         isLoadingTasks = uiState.isLoadingTasks,
                         taskErrorMessage = uiState.taskErrorMessage,
                         onLoadTasks = viewModel::loadTasks,
-                        onTaskSelected = onTaskSelected
+                        onTaskSelected = onTaskSelected,
+                        onCreateTask = onCreateTask
                     )
                 } else {
                     LeadDocumentsContent(
@@ -805,7 +807,8 @@ private fun LeadDetailContent(
     isLoadingTasks: Boolean,
     taskErrorMessage: String?,
     onLoadTasks: () -> Unit,
-    onTaskSelected: (Int) -> Unit
+    onTaskSelected: (Int) -> Unit,
+    onCreateTask: () -> Unit
 ) {
     var productEditorOpen by remember { mutableStateOf(false) }
     var editingProduct by remember { mutableStateOf<LeadProduct?>(null) }
@@ -1016,6 +1019,10 @@ private fun LeadDetailContent(
 
         item {
             LeadSectionCard(title = "Tasks") {
+                TextButton(onClick = onCreateTask) {
+                    Text("New Task")
+                }
+
                 if (isLoadingTasks) {
                     CircularProgressIndicator(
                         modifier = Modifier.padding(vertical = 8.dp)

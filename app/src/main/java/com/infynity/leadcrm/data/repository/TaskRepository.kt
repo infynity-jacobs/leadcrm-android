@@ -2,6 +2,7 @@ package com.infynity.leadcrm.data.repository
 
 import com.infynity.leadcrm.core.network.LeadCrmApi
 import com.infynity.leadcrm.core.network.models.TaskListResponse
+import com.infynity.leadcrm.core.network.models.TaskCreateRequest
 import com.infynity.leadcrm.core.network.models.TaskResponse
 import com.infynity.leadcrm.core.network.models.TaskStatusResponse
 import com.infynity.leadcrm.core.network.models.TaskUpdateRequest
@@ -15,6 +16,10 @@ class TaskRepository(
 
     suspend fun getTask(taskId: Int): TaskResponse {
         return api.getTask(taskId)
+    }
+
+    suspend fun createTask(request: TaskCreateRequest): TaskResponse {
+        return api.createTask(request)
     }
 
     suspend fun updateTask(

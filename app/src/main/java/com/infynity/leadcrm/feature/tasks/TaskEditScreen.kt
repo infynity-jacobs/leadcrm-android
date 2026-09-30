@@ -209,7 +209,7 @@ fun TaskEditScreen(
 }
 
 @Composable
-private fun TaskEditForm(
+internal fun TaskEditForm(
     title: String,
     onTitleChange: (String) -> Unit,
     description: String,

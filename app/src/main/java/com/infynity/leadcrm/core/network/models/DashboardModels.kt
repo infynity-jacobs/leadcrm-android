@@ -55,6 +55,20 @@ data class TaskUpdateRequest(
 )
 
 @Serializable
+data class TaskCreateRequest(
+    val title: String,
+    @SerialName("status_id") val statusId: Int,
+    val description: String? = null,
+    val priority: String = "medium",
+    @SerialName("task_type") val taskType: String = "general",
+    @SerialName("lead_id") val leadId: Int? = null,
+    @SerialName("assigned_to_id") val assignedToId: Int? = null,
+    @SerialName("team_id") val teamId: Int? = null,
+    @SerialName("start_date") val startDate: String? = null,
+    @SerialName("due_date") val dueDate: String? = null
+)
+
+@Serializable
 data class TaskStatusResponse(
     val id: Int,
     val name: String,

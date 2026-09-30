@@ -21,6 +21,7 @@ import com.infynity.leadcrm.core.network.models.TeamResponse
 import kotlinx.serialization.json.JsonObject
 import com.infynity.leadcrm.core.network.models.TaskListResponse
 import com.infynity.leadcrm.core.network.models.TaskResponse
+import com.infynity.leadcrm.core.network.models.TaskCreateRequest
 import com.infynity.leadcrm.core.network.models.TaskUpdateRequest
 import com.infynity.leadcrm.core.network.models.TaskStatusResponse
 import com.infynity.leadcrm.core.network.models.VoipCallRequest
@@ -59,6 +60,11 @@ interface LeadCrmApi {
 
     @GET("task-statuses")
     suspend fun getTaskStatuses(): List<TaskStatusResponse>
+
+    @POST("tasks")
+    suspend fun createTask(
+        @Body request: TaskCreateRequest
+    ): TaskResponse
 
     @GET("tasks/{taskId}")
     suspend fun getTask(

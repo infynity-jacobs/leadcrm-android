@@ -33,6 +33,9 @@ import com.infynity.leadcrm.feature.leads.LeadsViewModelFactory
 import com.infynity.leadcrm.feature.tasks.TaskDetailScreen
 import com.infynity.leadcrm.feature.tasks.TaskDetailViewModel
 import com.infynity.leadcrm.feature.tasks.TaskDetailViewModelFactory
+import com.infynity.leadcrm.feature.tasks.TaskCreateScreen
+import com.infynity.leadcrm.feature.tasks.TaskCreateViewModel
+import com.infynity.leadcrm.feature.tasks.TaskCreateViewModelFactory
 import com.infynity.leadcrm.feature.tasks.TaskEditScreen
 import com.infynity.leadcrm.feature.tasks.TaskEditViewModel
 import com.infynity.leadcrm.feature.tasks.TaskEditViewModelFactory
@@ -93,6 +96,14 @@ fun AppShell(
 
     var editingTaskId by remember {
         mutableStateOf<Int?>(null)
+    }
+
+    var creatingTaskForLeadId by remember {
+        mutableStateOf<Int?>(null)
+    }
+
+    var taskCreateSession by remember {
+        mutableStateOf(0)
     }
 
     var selectedCalendarEventId by remember {
@@ -156,6 +167,17 @@ fun AppShell(
             )
         )
     }
+
+    val taskCreateViewModel: TaskCreateViewModel? =
+        creatingTaskForLeadId?.let { leadId ->
+            viewModel(
+                key = "task-create-$leadId-$taskCreateSession",
+                factory = TaskCreateViewModelFactory(
+                    application.appContainer.taskRepository,
+                    leadId
+                )
+            )
+        }
 
     val calendarEventDetailViewModel: CalendarEventDetailViewModel? =
         selectedCalendarEventId?.let { eventId ->
@@ -287,6 +309,11 @@ fun AppShell(
                                 taskReturnToLeadId = selectedLeadId
                                 selectedTaskId = taskId
                                 currentDestination = AppDestination.TASKS
+                            },
+                            onCreateTask = {
+                                creatingTaskForLeadId = selectedLeadId
+                                taskCreateSession += 1
+                                currentDestination = AppDestination.TASKS
                             }
                         )
                     } else {
@@ -306,7 +333,22 @@ fun AppShell(
                 }
 
                 AppDestination.TASKS -> {
-                    if (editingTaskId != null && taskEditViewModel != null) {
+                    if (creatingTaskForLeadId != null &&
+                        taskCreateViewModel != null
+                    ) {
+                        TaskCreateScreen(
+                            viewModel = taskCreateViewModel,
+                            onBack = {
+                                val leadId = creatingTaskForLeadId
+                                creatingTaskForLeadId = null
+                                if (leadId != null) {
+                                    selectedLeadId = leadId
+                                    currentDestination = AppDestination.LEADS
+                                }
+                                leadDetailViewModel?.loadTasks()
+                            }
+                        )
+                    } else if (editingTaskId != null && taskEditViewModel != null) {
                         TaskEditScreen(
                             viewModel = taskEditViewModel,
                             onBack = {
