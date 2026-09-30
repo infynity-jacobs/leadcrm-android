@@ -4,6 +4,8 @@ import com.infynity.leadcrm.core.network.LeadCrmApi
 import com.infynity.leadcrm.core.network.models.CreateLeadRequest
 import com.infynity.leadcrm.core.network.models.LeadAreaResponse
 import com.infynity.leadcrm.core.network.models.LeadDetailResponse
+import com.infynity.leadcrm.core.network.models.LeadDocument
+import com.infynity.leadcrm.core.network.models.LeadDocumentRequirementsResponse
 import com.infynity.leadcrm.core.network.models.LeadListResponse
 import com.infynity.leadcrm.core.network.models.LeadResponse
 import com.infynity.leadcrm.core.network.UserResponse
@@ -86,6 +88,43 @@ class LeadRepository(
                 leadId = leadId
             )
         )
+    }
+
+    suspend fun getLeadDocumentRequirements(
+        leadId: Int
+    ): LeadDocumentRequirementsResponse {
+        return api.getLeadDocumentRequirements(leadId)
+    }
+
+    suspend fun getLeadDocuments(
+        leadId: Int
+    ): List<LeadDocument> {
+        return api.getLeadDocuments(leadId)
+    }
+
+    suspend fun uploadLeadDocument(
+        leadId: Int,
+        documentType: okhttp3.RequestBody,
+        file: okhttp3.MultipartBody.Part
+    ): LeadDocument {
+        return api.uploadLeadDocument(
+            leadId = leadId,
+            documentType = documentType,
+            file = file
+        )
+    }
+
+    suspend fun viewLeadDocument(
+        leadId: Int,
+        documentId: Int
+    ): okhttp3.ResponseBody {
+        return api.viewLeadDocument(leadId, documentId)
+    }
+
+    suspend fun downloadAllLeadDocuments(
+        leadId: Int
+    ): okhttp3.ResponseBody {
+        return api.downloadAllLeadDocuments(leadId)
     }
 
     suspend fun deleteLead(leadId: Int): Map<String, String> {

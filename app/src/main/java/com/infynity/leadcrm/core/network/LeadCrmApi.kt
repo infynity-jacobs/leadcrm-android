@@ -1,5 +1,8 @@
 package com.infynity.leadcrm.core.network
 
+import com.infynity.leadcrm.core.network.models.LeadDocument
+import com.infynity.leadcrm.core.network.models.LeadDocumentRequirementsResponse
+
 import com.infynity.leadcrm.core.network.models.CalendarEventCreateRequest
 import com.infynity.leadcrm.core.network.models.CalendarEventListResponse
 import com.infynity.leadcrm.core.network.models.CalendarEventResponse
@@ -21,13 +24,16 @@ import com.infynity.leadcrm.core.network.models.VoipCallResponse
 import com.infynity.leadcrm.core.network.models.NativeCallStartRequest
 import com.infynity.leadcrm.core.network.models.NativeCallStartResponse
 import retrofit2.http.Body
+import retrofit2.http.Multipart
+import retrofit2.http.Part
+import retrofit2.http.Path
+import retrofit2.http.GET
+import retrofit2.http.POST
+import retrofit2.http.DELETE
 import retrofit2.http.Field
 import retrofit2.http.FormUrlEncoded
-import retrofit2.http.GET
 import retrofit2.http.PATCH
-import retrofit2.http.POST
 import retrofit2.http.PUT
-import retrofit2.http.Path
 import retrofit2.http.Query
 
 interface LeadCrmApi {
@@ -157,6 +163,35 @@ interface LeadCrmApi {
         @Path("leadId") leadId: Int,
         @Body request: JsonObject
     ): LeadResponse
+
+    @GET("leads/{leadId}/documents/requirements")
+    suspend fun getLeadDocumentRequirements(
+        @Path("leadId") leadId: Int
+    ): LeadDocumentRequirementsResponse
+
+    @GET("leads/{leadId}/documents")
+    suspend fun getLeadDocuments(
+        @Path("leadId") leadId: Int
+    ): List<LeadDocument>
+
+    @Multipart
+    @POST("leads/{leadId}/documents")
+    suspend fun uploadLeadDocument(
+        @Path("leadId") leadId: Int,
+        @Part("document_type") documentType: okhttp3.RequestBody,
+        @Part file: okhttp3.MultipartBody.Part
+    ): LeadDocument
+
+    @GET("leads/{leadId}/documents/{documentId}/view")
+    suspend fun viewLeadDocument(
+        @Path("leadId") leadId: Int,
+        @Path("documentId") documentId: Int
+    ): okhttp3.ResponseBody
+
+    @GET("leads/{leadId}/documents/download-all")
+    suspend fun downloadAllLeadDocuments(
+        @Path("leadId") leadId: Int
+    ): okhttp3.ResponseBody
 
     @retrofit2.http.DELETE("leads/{leadId}")
     suspend fun deleteLead(

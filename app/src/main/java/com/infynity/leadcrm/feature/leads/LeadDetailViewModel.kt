@@ -4,6 +4,8 @@ import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.infynity.leadcrm.core.network.models.LeadDetailResponse
+import com.infynity.leadcrm.core.network.models.LeadDocument
+import com.infynity.leadcrm.core.network.models.LeadDocumentRequirement
 import com.infynity.leadcrm.core.voip.NativeSipManager
 import com.infynity.leadcrm.data.repository.LeadRepository
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -21,6 +23,13 @@ data class LeadDetailUiState(
     val nativeCallMessage: String? = null,
     val isSpeakerEnabled: Boolean = false,
     val lead: LeadDetailResponse? = null,
+    val documentRequirements: List<LeadDocumentRequirement> = emptyList(),
+    val documents: List<LeadDocument> = emptyList(),
+    val isLoadingDocuments: Boolean = false,
+    val isUploadingDocument: Boolean = false,
+    val documentErrorMessage: String? = null,
+    val documentFilePath: String? = null,
+    val downloadAllFilePath: String? = null,
     val errorMessage: String? = null,
     val callMessage: String? = null,
     val callSuccessful: Boolean = false,
@@ -36,7 +45,8 @@ class LeadDetailViewModel(
     private val _uiState = MutableStateFlow(LeadDetailUiState())
     val uiState: StateFlow<LeadDetailUiState> = _uiState.asStateFlow()
 
-    private val nativeSipManager = NativeSipManager(appContext.applicationContext)
+    private val appContext = appContext.applicationContext
+    private val nativeSipManager = NativeSipManager(appContext)
 
     init {
         viewModelScope.launch {
@@ -77,10 +87,12 @@ class LeadDetailViewModel(
             try {
                 val lead = repository.getLead(leadId)
 
-                _uiState.value = LeadDetailUiState(
+                _uiState.value = _uiState.value.copy(
                     isLoading = false,
-                    lead = lead
+                    lead = lead,
+                    errorMessage = null
                 )
+                loadDocuments()
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
@@ -92,6 +104,187 @@ class LeadDetailViewModel(
 
     fun refresh() {
         loadLead()
+    }
+
+    fun loadDocuments() {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(
+                isLoadingDocuments = true,
+                documentErrorMessage = null
+            )
+
+            try {
+                val response = repository.getLeadDocumentRequirements(leadId)
+                val documents = repository.getLeadDocuments(leadId)
+
+                _uiState.value = _uiState.value.copy(
+                    isLoadingDocuments = false,
+                    documentRequirements = response.requirements.sortedBy { it.displayOrder },
+                    documents = documents,
+                    documentErrorMessage = null
+                )
+            } catch (e: HttpException) {
+                _uiState.value = _uiState.value.copy(
+                    isLoadingDocuments = false,
+                    documentErrorMessage = "Unable to load documents: HTTP ${e.code()}"
+                )
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(
+                    isLoadingDocuments = false,
+                    documentErrorMessage = e.message ?: "Unable to load documents"
+                )
+            }
+        }
+    }
+
+    fun uploadDocument(
+        documentType: okhttp3.RequestBody,
+        file: okhttp3.MultipartBody.Part
+    ) {
+        if (_uiState.value.isUploadingDocument) return
+
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(
+                isUploadingDocument = true,
+                documentErrorMessage = null
+            )
+
+            try {
+                repository.uploadLeadDocument(
+                    leadId = leadId,
+                    documentType = documentType,
+                    file = file
+                )
+
+                val response = repository.getLeadDocumentRequirements(leadId)
+                val documents = repository.getLeadDocuments(leadId)
+
+                _uiState.value = _uiState.value.copy(
+                    isUploadingDocument = false,
+                    documentRequirements = response.requirements.sortedBy { it.displayOrder },
+                    documents = documents,
+                    documentErrorMessage = null
+                )
+            } catch (e: HttpException) {
+                _uiState.value = _uiState.value.copy(
+                    isUploadingDocument = false,
+                    documentErrorMessage = "Unable to upload document: HTTP ${e.code()}"
+                )
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(
+                    isUploadingDocument = false,
+                    documentErrorMessage = e.message ?: "Unable to upload document"
+                )
+            }
+        }
+    }
+
+    fun downloadDocumentForViewing(document: LeadDocument) {
+        if (_uiState.value.documentFilePath != null) return
+
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(
+                documentFilePath = null,
+                documentErrorMessage = null
+            )
+
+            try {
+                val responseBody = repository.viewLeadDocument(
+                    leadId = leadId,
+                    documentId = document.id
+                )
+
+                val documentsDir = java.io.File(appContext.cacheDir, "documents").apply {
+                    mkdirs()
+                }
+
+                documentsDir.listFiles()?.forEach { file ->
+                    if (file.isFile) file.delete()
+                }
+
+                val safeName = document.originalFilename
+                    .replace(Regex("[^A-Za-z0-9._-]"), "_")
+                    .ifBlank { "document" }
+
+                val outputFile = java.io.File(documentsDir, safeName)
+
+                responseBody.byteStream().use { input ->
+                    outputFile.outputStream().use { output ->
+                        input.copyTo(output)
+                    }
+                }
+
+                _uiState.value = _uiState.value.copy(
+                    documentFilePath = outputFile.absolutePath,
+                    documentErrorMessage = null
+                )
+            } catch (e: HttpException) {
+                _uiState.value = _uiState.value.copy(
+                    documentFilePath = null,
+                    documentErrorMessage = "Unable to view document: HTTP ${e.code()}"
+                )
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(
+                    documentFilePath = null,
+                    documentErrorMessage = e.message ?: "Unable to view document"
+                )
+            }
+        }
+    }
+
+    fun downloadAllDocuments() {
+        if (_uiState.value.downloadAllFilePath != null) return
+
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(
+                downloadAllFilePath = null,
+                documentErrorMessage = null
+            )
+
+            try {
+                val responseBody = repository.downloadAllLeadDocuments(leadId)
+
+                val documentsDir = java.io.File(appContext.cacheDir, "documents").apply {
+                    mkdirs()
+                }
+
+                val outputFile = java.io.File(
+                    documentsDir,
+                    "lead-${leadId}-documents.pdf"
+                )
+
+                responseBody.byteStream().use { input ->
+                    outputFile.outputStream().use { output ->
+                        input.copyTo(output)
+                    }
+                }
+
+                _uiState.value = _uiState.value.copy(
+                    downloadAllFilePath = outputFile.absolutePath,
+                    documentErrorMessage = null
+                )
+            } catch (e: HttpException) {
+                _uiState.value = _uiState.value.copy(
+                    downloadAllFilePath = null,
+                    documentErrorMessage =
+                        "Unable to download documents: HTTP ${e.code()}"
+                )
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(
+                    downloadAllFilePath = null,
+                    documentErrorMessage =
+                        e.message ?: "Unable to download documents"
+                )
+            }
+        }
+    }
+
+    fun clearDownloadAllFile() {
+        _uiState.value = _uiState.value.copy(downloadAllFilePath = null)
+    }
+
+    fun clearDocumentFile() {
+        _uiState.value = _uiState.value.copy(documentFilePath = null)
     }
 
     fun initiateNativeCall() {

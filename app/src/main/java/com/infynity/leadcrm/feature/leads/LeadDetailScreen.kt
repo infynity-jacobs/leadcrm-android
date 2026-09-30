@@ -4,6 +4,7 @@ import android.Manifest
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
+import androidx.core.content.FileProvider
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -27,6 +28,8 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRow
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -47,11 +50,17 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import android.content.Intent
 import android.net.Uri
+import android.provider.OpenableColumns
+import android.widget.Toast
 import java.time.LocalDateTime
 import java.time.OffsetDateTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.RequestBody.Companion.toRequestBody
+import okhttp3.MultipartBody
+import okhttp3.RequestBody
 import com.infynity.leadcrm.core.network.models.FollowUpResponse
 import com.infynity.leadcrm.core.voip.NativeSipManager
 import com.infynity.leadcrm.core.network.models.LeadDetailResponse
@@ -66,7 +75,121 @@ fun LeadDetailScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var showDeleteConfirmation by remember { mutableStateOf(false) }
+    var selectedTab by remember { mutableStateOf(0) }
+    var pendingDocumentType by remember { mutableStateOf<String?>(null) }
+    var viewingDocumentMimeType by remember { mutableStateOf<String?>(null) }
+    var isViewingDocument by remember { mutableStateOf(false) }
+    var pendingSaveDocumentName by remember { mutableStateOf<String?>(null) }
+    var isDownloadingAllDocuments by remember { mutableStateOf(false) }
     val context = LocalContext.current
+
+    val documentPicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        val documentType = pendingDocumentType
+        pendingDocumentType = null
+
+        if (uri != null && documentType != null) {
+            uploadSelectedLeadDocument(
+                context = context,
+                uri = uri,
+                documentType = documentType,
+                onUpload = viewModel::uploadDocument
+            )
+        }
+    }
+
+    LaunchedEffect(uiState.documentFilePath) {
+        val filePath = uiState.documentFilePath
+        if (!filePath.isNullOrBlank()) {
+            try {
+                val file = java.io.File(filePath)
+                val uri = FileProvider.getUriForFile(
+                    context,
+                    "${context.packageName}.fileprovider",
+                    file
+                )
+
+                val intent = Intent(Intent.ACTION_VIEW).apply {
+                    setDataAndType(
+                        uri,
+                        viewingDocumentMimeType ?: "*/*"
+                    )
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+
+                context.startActivity(intent)
+            } catch (e: android.content.ActivityNotFoundException) {
+                Toast.makeText(
+                    context,
+                    "No app is available to open this document.",
+                    Toast.LENGTH_LONG
+                ).show()
+            } catch (e: Exception) {
+                Toast.makeText(
+                    context,
+                    "Unable to open document.",
+                    Toast.LENGTH_LONG
+                ).show()
+            } finally {
+                isViewingDocument = false
+                viewingDocumentMimeType = null
+                viewModel.clearDocumentFile()
+            }
+        }
+    }
+
+    val saveDocumentLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/pdf")
+    ) { uri ->
+        val filePath = uiState.downloadAllFilePath
+
+        if (uri != null && !filePath.isNullOrBlank()) {
+            try {
+                val sourceFile = java.io.File(filePath)
+
+                context.contentResolver.openOutputStream(uri)?.use { output ->
+                    sourceFile.inputStream().use { input ->
+                        input.copyTo(output)
+                    }
+                } ?: throw java.io.IOException("Unable to open destination")
+
+                Toast.makeText(
+                    context,
+                    "Documents saved successfully.",
+                    Toast.LENGTH_SHORT
+                ).show()
+            } catch (e: Exception) {
+                Toast.makeText(
+                    context,
+                    "Unable to save documents.",
+                    Toast.LENGTH_LONG
+                ).show()
+            }
+        }
+
+        pendingSaveDocumentName = null
+        viewModel.clearDownloadAllFile()
+    }
+
+    LaunchedEffect(uiState.downloadAllFilePath) {
+        val filePath = uiState.downloadAllFilePath
+        if (!filePath.isNullOrBlank()) {
+            saveDocumentLauncher.launch(
+                pendingSaveDocumentName
+                    ?: "lead-${uiState.lead?.id ?: "documents"}-documents.pdf"
+            )
+        }
+    }
+
+    LaunchedEffect(uiState.downloadAllFilePath, uiState.documentErrorMessage) {
+        if (!uiState.downloadAllFilePath.isNullOrBlank() ||
+            !uiState.documentErrorMessage.isNullOrBlank()
+        ) {
+            isDownloadingAllDocuments = false
+        }
+    }
 
     val microphonePermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -216,19 +339,69 @@ fun LeadDetailScreen(
             }
 
             uiState.lead != null -> {
-                LeadDetailContent(
-                    lead = uiState.lead!!,
-                    isCalling = uiState.isCalling,
-                    callMessage = uiState.callMessage,
-                    isNativeCalling = uiState.isNativeCalling,
-                    nativeCallState = uiState.nativeCallState,
-                    nativeCallMessage = uiState.nativeCallMessage,
-                    isSpeakerEnabled = uiState.isSpeakerEnabled,
-                    onNativeCall = startNativeCallWithPermission,
-                    onEndNativeCall = viewModel::endNativeCall,
-                    onToggleNativeSpeaker = viewModel::toggleNativeSpeaker,
-                    onVoipCall = viewModel::initiateVoipCall
-                )
+                TabRow(selectedTabIndex = selectedTab) {
+                    Tab(
+                        selected = selectedTab == 0,
+                        onClick = { selectedTab = 0 },
+                        text = { Text("Overview") }
+                    )
+                    Tab(
+                        selected = selectedTab == 1,
+                        onClick = { selectedTab = 1 },
+                        text = { Text("Documents") }
+                    )
+                }
+
+                if (selectedTab == 0) {
+                    LeadDetailContent(
+                        lead = uiState.lead!!,
+                        isCalling = uiState.isCalling,
+                        callMessage = uiState.callMessage,
+                        isNativeCalling = uiState.isNativeCalling,
+                        nativeCallState = uiState.nativeCallState,
+                        nativeCallMessage = uiState.nativeCallMessage,
+                        isSpeakerEnabled = uiState.isSpeakerEnabled,
+                        onNativeCall = startNativeCallWithPermission,
+                        onEndNativeCall = viewModel::endNativeCall,
+                        onToggleNativeSpeaker = viewModel::toggleNativeSpeaker,
+                        onVoipCall = viewModel::initiateVoipCall
+                    )
+                } else {
+                    LeadDocumentsContent(
+                        requirements = uiState.documentRequirements,
+                        documents = uiState.documents,
+                        isLoading = uiState.isLoadingDocuments,
+                        isUploading = uiState.isUploadingDocument,
+                        errorMessage = uiState.documentErrorMessage,
+                        onRetry = viewModel::loadDocuments,
+                        isViewingDocument = isViewingDocument,
+                        isDownloadingAllDocuments = isDownloadingAllDocuments,
+                        onDownloadAll = {
+                            if (!isDownloadingAllDocuments && uiState.documents.isNotEmpty()) {
+                                isDownloadingAllDocuments = true
+                                viewModel.downloadAllDocuments()
+                            }
+                        },
+                        onViewDocument = { document ->
+                            if (!isViewingDocument) {
+                                isViewingDocument = true
+                                viewingDocumentMimeType =
+                                    document.contentType ?: "application/octet-stream"
+                                viewModel.downloadDocumentForViewing(document)
+                            }
+                        },
+                        onUpload = { documentType ->
+                            pendingDocumentType = documentType
+                            documentPicker.launch(
+                                arrayOf(
+                                    "application/pdf",
+                                    "image/jpeg",
+                                    "image/png"
+                                )
+                            )
+                        }
+                    )
+                }
 
                 if (uiState.isDeleting) {
                     Text(
@@ -239,6 +412,326 @@ fun LeadDetailScreen(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun LeadDocumentsContent(
+    requirements: List<com.infynity.leadcrm.core.network.models.LeadDocumentRequirement>,
+    documents: List<com.infynity.leadcrm.core.network.models.LeadDocument>,
+    isLoading: Boolean,
+    isUploading: Boolean,
+    errorMessage: String?,
+    onRetry: () -> Unit,
+    isViewingDocument: Boolean,
+    isDownloadingAllDocuments: Boolean,
+    onDownloadAll: () -> Unit,
+    onViewDocument: (com.infynity.leadcrm.core.network.models.LeadDocument) -> Unit,
+    onUpload: (String) -> Unit
+) {
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        item {
+            LeadSectionCard(title = "Documents") {
+                when {
+                    isLoading -> {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            CircularProgressIndicator()
+                        }
+                    }
+
+                    errorMessage != null -> {
+                        Text(
+                            text = errorMessage,
+                            color = MaterialTheme.colorScheme.error
+                        )
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        Button(onClick = onRetry) {
+                            Text("Retry")
+                        }
+                    }
+
+                    requirements.isEmpty() && documents.isEmpty() -> {
+                        Text(
+                            text = "No document requirements configured.",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
+
+                    else -> {
+                        if (documents.isNotEmpty()) {
+                            Button(
+                                onClick = onDownloadAll,
+                                enabled = !isDownloadingAllDocuments && !isUploading
+                            ) {
+                                Text(
+                                    if (isDownloadingAllDocuments) {
+                                        "Preparing PDF..."
+                                    } else {
+                                        "Download All"
+                                    }
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.height(4.dp))
+
+                            Text(
+                                text = "Uploaded Documents",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.SemiBold
+                            )
+
+                            documents.forEach { document ->
+                                DocumentRow(
+                                    document = document,
+                                    isViewing = isViewingDocument,
+                                    onView = { onViewDocument(document) }
+                                )
+                            }
+                        }
+
+                        if (requirements.isNotEmpty()) {
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            Text(
+                                text = "Document Requirements",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.SemiBold
+                            )
+
+                            requirements.forEach { requirement ->
+                                val count = documents.count {
+                                    it.documentType == requirement.documentType
+                                }
+
+                                DocumentRequirementRow(
+                                    requirement = requirement,
+                                    uploadedCount = count,
+                                    isUploading = isUploading,
+                                    onUpload = { onUpload(requirement.documentType) }
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DocumentRow(
+    document: com.infynity.leadcrm.core.network.models.LeadDocument,
+    isViewing: Boolean,
+    onView: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 6.dp)
+    ) {
+        Text(
+            text = document.originalFilename,
+            style = MaterialTheme.typography.bodyLarge,
+            fontWeight = FontWeight.Medium
+        )
+
+        DetailText("Type", document.documentType)
+        DetailText("Format", document.contentType)
+        document.size?.let {
+            DetailText("Size", formatDocumentSize(it))
+        }
+
+        Spacer(modifier = Modifier.height(6.dp))
+
+        Button(
+            onClick = onView,
+            enabled = !isViewing
+        ) {
+            Text(if (isViewing) "Opening..." else "View")
+        }
+    }
+}
+
+@Composable
+private fun DocumentRequirementRow(
+    requirement: com.infynity.leadcrm.core.network.models.LeadDocumentRequirement,
+    uploadedCount: Int,
+    isUploading: Boolean,
+    onUpload: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 6.dp)
+    ) {
+        Text(
+            text = requirement.displayName,
+            style = MaterialTheme.typography.bodyLarge,
+            fontWeight = FontWeight.Medium
+        )
+
+        Text(
+            text = buildString {
+                append(if (requirement.required) "Required" else "Optional")
+                append(" • ")
+                append("$uploadedCount uploaded")
+                if (requirement.multipleAllowed) {
+                    append(" • Multiple allowed")
+                }
+            },
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+
+        Spacer(modifier = Modifier.height(6.dp))
+
+        if (isUploading) {
+            CircularProgressIndicator(
+                modifier = Modifier
+                    .width(18.dp)
+                    .height(18.dp),
+                strokeWidth = 2.dp
+            )
+        } else if (requirement.multipleAllowed || uploadedCount == 0) {
+            Button(
+                onClick = onUpload
+            ) {
+                Text(if (uploadedCount == 0) "Upload" else "Upload Another")
+            }
+        } else {
+            Text(
+                text = "Upload limit reached",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+private const val MAX_LEAD_DOCUMENT_SIZE = 10L * 1024L * 1024L
+
+private fun uploadSelectedLeadDocument(
+    context: android.content.Context,
+    uri: Uri,
+    documentType: String,
+    onUpload: (RequestBody, MultipartBody.Part) -> Unit
+) {
+    val size = context.contentResolver.query(
+        uri,
+        arrayOf(OpenableColumns.SIZE),
+        null,
+        null,
+        null
+    )?.use { cursor ->
+        if (cursor.moveToFirst() && !cursor.isNull(0)) {
+            cursor.getLong(0)
+        } else {
+            null
+        }
+    }
+
+    if (size != null && size > MAX_LEAD_DOCUMENT_SIZE) {
+        Toast.makeText(
+            context,
+            "Document must be 10 MB or smaller.",
+            Toast.LENGTH_LONG
+        ).show()
+        return
+    }
+
+    val fileName = context.contentResolver.query(
+        uri,
+        arrayOf(OpenableColumns.DISPLAY_NAME),
+        null,
+        null,
+        null
+    )?.use { cursor ->
+        if (cursor.moveToFirst() && !cursor.isNull(0)) {
+            cursor.getString(0)
+        } else {
+            null
+        }
+    } ?: "document"
+
+    val contentType = context.contentResolver.getType(uri)
+        ?: when {
+            fileName.endsWith(".pdf", ignoreCase = true) -> "application/pdf"
+            fileName.endsWith(".jpg", ignoreCase = true) ||
+                fileName.endsWith(".jpeg", ignoreCase = true) -> "image/jpeg"
+            fileName.endsWith(".png", ignoreCase = true) -> "image/png"
+            else -> null
+        }
+
+    if (contentType !in setOf("application/pdf", "image/jpeg", "image/png")) {
+        Toast.makeText(
+            context,
+            "Only PDF, JPEG, and PNG files are supported.",
+            Toast.LENGTH_LONG
+        ).show()
+        return
+    }
+
+    val bytes = try {
+        context.contentResolver.openInputStream(uri)?.use { input ->
+            input.readBytes()
+        }
+    } catch (e: Exception) {
+        null
+    }
+
+    if (bytes == null) {
+        Toast.makeText(
+            context,
+            "Unable to read the selected document.",
+            Toast.LENGTH_LONG
+        ).show()
+        return
+    }
+
+    if (bytes.size.toLong() > MAX_LEAD_DOCUMENT_SIZE) {
+        Toast.makeText(
+            context,
+            "Document must be 10 MB or smaller.",
+            Toast.LENGTH_LONG
+        ).show()
+        return
+    }
+
+    val documentTypeBody = documentType
+        .toRequestBody("text/plain".toMediaTypeOrNull())
+
+    val fileBody = bytes.toRequestBody(
+        contentType!!.toMediaTypeOrNull()
+    )
+
+    val filePart = MultipartBody.Part.createFormData(
+        "file",
+        fileName,
+        fileBody
+    )
+
+    onUpload(documentTypeBody, filePart)
+}
+
+private fun formatDocumentSize(size: Long): String {
+    return when {
+        size < 1024L -> "$size B"
+        size < 1024L * 1024L -> "${size / 1024L} KB"
+        else -> String.format(
+            Locale.getDefault(),
+            "%.1f MB",
+            size.toDouble() / (1024L * 1024L)
+        )
     }
 }
 
