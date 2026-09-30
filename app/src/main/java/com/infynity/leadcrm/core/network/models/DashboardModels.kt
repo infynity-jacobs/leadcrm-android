@@ -2,6 +2,11 @@ package com.infynity.leadcrm.core.network.models
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.EncodeDefault
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.jsonObject
 
 @Serializable
 data class TaskListResponse(
@@ -246,16 +251,53 @@ data class UpdateLeadRequest(
     val email: String? = null,
     val phone: String? = null,
     @SerialName("phone_2") val phone2: String? = null,
+    @EncodeDefault(EncodeDefault.Mode.ALWAYS)
     @SerialName("infynity_customer") val infynityCustomer: Boolean = false,
+    @EncodeDefault(EncodeDefault.Mode.ALWAYS)
     @SerialName("infynity_customer_id") val infynityCustomerId: String? = null,
     @SerialName("kseb_consumer_number") val ksebConsumerNumber: String? = null,
+    @EncodeDefault(EncodeDefault.Mode.ALWAYS)
+    @SerialName("at_customer_location") val atCustomerLocation: Boolean = false,
+    @EncodeDefault(EncodeDefault.Mode.ALWAYS)
+    @SerialName("customer_latitude") val customerLatitude: Double? = null,
+    @EncodeDefault(EncodeDefault.Mode.ALWAYS)
+    @SerialName("customer_longitude") val customerLongitude: Double? = null,
+    @EncodeDefault(EncodeDefault.Mode.ALWAYS)
+    @SerialName("customer_location_accuracy") val customerLocationAccuracy: Double? = null,
+    @EncodeDefault(EncodeDefault.Mode.ALWAYS)
+    @SerialName("customer_location_captured_at") val customerLocationCapturedAt: String? = null,
     val company: String? = null,
     val source: String? = null,
     @SerialName("place_area") val placeArea: String? = null,
     @SerialName("referred_by") val referredBy: String? = null,
-    val notes: String? = null
+    val notes: String? = null,
+    // -1 is omitted when assignment controls are unavailable; null clears an authorized selection.
+    @SerialName("assigned_to_id") val assignedToId: Int? = -1,
+    @SerialName("team_id") val teamId: Int? = -1
 )
 
+/** Encodes update clear-values with explicit JSON nulls without changing app-wide serialization. */
+fun UpdateLeadRequest.toApiPayload(): JsonObject =
+    Json { explicitNulls = true }
+        .encodeToString(UpdateLeadRequest.serializer(), this)
+        .let { Json.parseToJsonElement(it).jsonObject }
+
+@Serializable
+data class TeamResponse(
+    val id: Int,
+    val name: String,
+    val description: String? = null,
+    @SerialName("leader_id") val leaderId: Int? = null,
+    @SerialName("is_active") val isActive: Boolean = true
+)
+
+@Serializable
+data class SettingOptionResponse(
+    val id: Int,
+    val category: String,
+    val value: String,
+    @SerialName("is_active") val isActive: Boolean = true
+)
 
 @Serializable
 data class CreateLeadRequest(

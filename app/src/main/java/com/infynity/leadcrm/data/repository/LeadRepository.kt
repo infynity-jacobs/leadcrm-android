@@ -6,6 +6,10 @@ import com.infynity.leadcrm.core.network.models.LeadAreaResponse
 import com.infynity.leadcrm.core.network.models.LeadDetailResponse
 import com.infynity.leadcrm.core.network.models.LeadListResponse
 import com.infynity.leadcrm.core.network.models.LeadResponse
+import com.infynity.leadcrm.core.network.UserResponse
+import com.infynity.leadcrm.core.network.models.SettingOptionResponse
+import com.infynity.leadcrm.core.network.models.TeamResponse
+import com.infynity.leadcrm.core.network.models.toApiPayload
 import com.infynity.leadcrm.core.network.models.UpdateLeadRequest
 import com.infynity.leadcrm.core.network.models.VoipCallRequest
 import com.infynity.leadcrm.core.network.models.VoipCallResponse
@@ -35,6 +39,14 @@ class LeadRepository(
         return api.getLeadAreas(search = search)
     }
 
+    suspend fun getTeams(): List<TeamResponse> = api.getTeams()
+
+    suspend fun getLeadAssignees(teamId: Int): List<UserResponse> =
+        api.getUsers(role = "marketing_staff", teamId = teamId)
+
+    suspend fun getReferralOptions(): List<SettingOptionResponse> =
+        api.getSettingOptions(category = "referred_by")
+
     suspend fun getLead(leadId: Int): LeadDetailResponse {
         return api.getLead(leadId)
     }
@@ -45,7 +57,7 @@ class LeadRepository(
     ): LeadResponse {
         return api.updateLead(
             leadId = leadId,
-            request = request
+            request = request.toApiPayload()
         )
     }
 

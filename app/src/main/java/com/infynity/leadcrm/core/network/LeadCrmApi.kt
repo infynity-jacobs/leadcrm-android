@@ -9,7 +9,9 @@ import com.infynity.leadcrm.core.network.models.LeadDetailResponse
 import com.infynity.leadcrm.core.network.models.CreateLeadRequest
 import com.infynity.leadcrm.core.network.models.LeadListResponse
 import com.infynity.leadcrm.core.network.models.LeadResponse
-import com.infynity.leadcrm.core.network.models.UpdateLeadRequest
+import com.infynity.leadcrm.core.network.models.SettingOptionResponse
+import com.infynity.leadcrm.core.network.models.TeamResponse
+import kotlinx.serialization.json.JsonObject
 import com.infynity.leadcrm.core.network.models.TaskListResponse
 import com.infynity.leadcrm.core.network.models.TaskResponse
 import com.infynity.leadcrm.core.network.models.TaskUpdateRequest
@@ -100,6 +102,21 @@ interface LeadCrmApi {
     ): List<LeadAreaResponse>
 
 
+    @GET("teams")
+    suspend fun getTeams(): List<TeamResponse>
+
+    @GET("users")
+    suspend fun getUsers(
+        @Query("role") role: String? = null,
+        @Query("team_id") teamId: Int? = null
+    ): List<UserResponse>
+
+    @GET("settings/options")
+    suspend fun getSettingOptions(
+        @Query("category") category: String,
+        @Query("include_inactive") includeInactive: Boolean = false
+    ): List<SettingOptionResponse>
+
     @POST("voip/call")
     suspend fun initiateVoipCall(
         @Body request: VoipCallRequest
@@ -138,7 +155,7 @@ interface LeadCrmApi {
     @PUT("leads/{leadId}")
     suspend fun updateLead(
         @Path("leadId") leadId: Int,
-        @Body request: UpdateLeadRequest
+        @Body request: JsonObject
     ): LeadResponse
 
     @retrofit2.http.DELETE("leads/{leadId}")

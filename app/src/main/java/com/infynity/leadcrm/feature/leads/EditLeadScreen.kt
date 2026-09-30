@@ -33,13 +33,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.infynity.leadcrm.core.network.UserResponse
 import com.infynity.leadcrm.core.network.models.LeadAreaResponse
 import com.infynity.leadcrm.core.network.models.LeadDetailResponse
+import com.infynity.leadcrm.core.network.models.TeamResponse
 import com.infynity.leadcrm.core.network.models.UpdateLeadRequest
 
 @Composable
 fun EditLeadScreen(
     viewModel: LeadEditViewModel,
+    currentUser: UserResponse,
     onBack: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -58,6 +61,26 @@ fun EditLeadScreen(
     var infynityCustomerId by remember { mutableStateOf("") }
     var ksebConsumerNumber by remember { mutableStateOf("") }
     var notes by remember { mutableStateOf("") }
+    var atCustomerLocation by remember { mutableStateOf(false) }
+    var customerLocation by remember { mutableStateOf(CustomerLocationData()) }
+    var teamId by remember { mutableStateOf<Int?>(null) }
+    var assignedToId by remember { mutableStateOf<Int?>(null) }
+    var validationError by remember { mutableStateOf<String?>(null) }
+
+    val canAssign = currentUser.role in setOf(
+        "super_admin", "site_admin", "marketing_manager", "team_leader"
+    )
+    val availableTeams = if (currentUser.role == "team_leader") {
+        val memberships = currentUser.teamMemberships.mapNotNull { it.teamId }.toSet()
+        uiState.teams.filter { it.id in memberships || it.id == currentUser.teamId }
+    } else {
+        uiState.teams.filter { it.isActive }
+    }
+
+    LaunchedEffect(currentUser.id) { viewModel.loadFormOptions() }
+    LaunchedEffect(teamId, canAssign) {
+        if (canAssign) viewModel.loadAssignees(teamId)
+    }
 
     LaunchedEffect(uiState.lead?.id) {
         val lead = uiState.lead ?: return@LaunchedEffect
@@ -76,6 +99,15 @@ fun EditLeadScreen(
             infynityCustomerId = lead.infynityCustomerId.orEmpty()
             ksebConsumerNumber = lead.ksebConsumerNumber.orEmpty()
             notes = lead.notes.orEmpty()
+            atCustomerLocation = lead.atCustomerLocation
+            customerLocation = CustomerLocationData(
+                latitude = lead.customerLatitude?.toString().orEmpty(),
+                longitude = lead.customerLongitude?.toString().orEmpty(),
+                accuracy = lead.customerLocationAccuracy?.toString().orEmpty(),
+                capturedAt = lead.customerLocationCapturedAt.orEmpty()
+            )
+            teamId = lead.teamId
+            assignedToId = lead.assignedToId
             initializedLeadId = lead.id
         }
     }
@@ -159,20 +191,54 @@ fun EditLeadScreen(
                     areaSearchError = uiState.areaSearchError,
                     onSearchAreas = viewModel::searchAreas,
                     referredBy = referredBy,
+                    referralOptions = uiState.referralOptions.map { it.value },
                     onReferredByChange = { referredBy = it },
                     infynityCustomer = infynityCustomer,
-                    onInfynityCustomerChange = { infynityCustomer = it },
+                    onInfynityCustomerChange = {
+                        infynityCustomer = it
+                        if (!it) infynityCustomerId = ""
+                        validationError = null
+                    },
                     infynityCustomerId = infynityCustomerId,
-                    onInfynityCustomerIdChange = { infynityCustomerId = it },
+                    onInfynityCustomerIdChange = {
+                        infynityCustomerId = it.take(10)
+                        validationError = null
+                    },
                     ksebConsumerNumber = ksebConsumerNumber,
                     onKsebConsumerNumberChange = { ksebConsumerNumber = it },
+                    atCustomerLocation = atCustomerLocation,
+                    customerLocation = customerLocation,
+                    onAtCustomerLocationChange = { atCustomerLocation = it },
+                    onCustomerLocationChange = { customerLocation = it },
+                    teams = availableTeams,
+                    teamId = teamId,
+                    onTeamChange = { teamId = it; assignedToId = null },
+                    assignees = uiState.assignees,
+                    assignedToId = assignedToId,
+                    onAssigneeChange = { assignedToId = it },
+                    showAssignment = canAssign,
                     notes = notes,
                     onNotesChange = { notes = it },
                     isSaving = uiState.isSaving,
                     errorMessage = uiState.errorMessage,
+                    validationError = validationError,
                     onCancel = onBack,
                     onSave = {
-                        viewModel.save(
+                        val cleanCustomerId = infynityCustomerId.trim()
+                        validationError = when {
+                            firstName.isBlank() -> "First name is required."
+                            infynityCustomer && cleanCustomerId.isBlank() ->
+                                "Infynity Customer ID is required."
+                            infynityCustomer && cleanCustomerId.length > 10 ->
+                                "Infynity Customer ID must be no more than 10 characters."
+                            atCustomerLocation &&
+                                (customerLocation.latitude.isBlank() ||
+                                 customerLocation.longitude.isBlank() ||
+                                 customerLocation.capturedAt.isBlank()) ->
+                                "Please capture the customer location using “Use My Location” before saving."
+                            else -> null
+                        }
+                        if (validationError == null) viewModel.save(
                             UpdateLeadRequest(
                                 firstName = firstName.trim(),
                                 lastName = lastName.trim().ifBlank { null },
@@ -180,13 +246,24 @@ fun EditLeadScreen(
                                 phone = phone.trim().ifBlank { null },
                                 phone2 = phone2.trim().ifBlank { null },
                                 infynityCustomer = infynityCustomer,
-                                infynityCustomerId = infynityCustomerId.trim().ifBlank { null },
+                                infynityCustomerId = cleanCustomerId.takeIf { infynityCustomer },
                                 ksebConsumerNumber = ksebConsumerNumber.trim().ifBlank { null },
                                 company = company.trim().ifBlank { null },
                                 source = source.trim().ifBlank { null },
                                 placeArea = placeArea.trim().ifBlank { null },
                                 referredBy = referredBy.trim().ifBlank { null },
-                                notes = notes.trim().ifBlank { null }
+                                notes = notes.trim().ifBlank { null },
+                                atCustomerLocation = atCustomerLocation,
+                                customerLatitude = customerLocation.latitude
+                                    .toDoubleOrNull().takeIf { atCustomerLocation },
+                                customerLongitude = customerLocation.longitude
+                                    .toDoubleOrNull().takeIf { atCustomerLocation },
+                                customerLocationAccuracy = customerLocation.accuracy
+                                    .toDoubleOrNull().takeIf { atCustomerLocation },
+                                customerLocationCapturedAt = customerLocation.capturedAt
+                                    .takeIf { atCustomerLocation && it.isNotBlank() },
+                                teamId = if (canAssign) teamId else -1,
+                                assignedToId = if (canAssign) assignedToId else -1
                             )
                         )
                     }
@@ -219,6 +296,7 @@ private fun EditLeadForm(
     areaSearchError: String?,
     onSearchAreas: (String) -> Unit,
     referredBy: String,
+    referralOptions: List<String>,
     onReferredByChange: (String) -> Unit,
     infynityCustomer: Boolean,
     onInfynityCustomerChange: (Boolean) -> Unit,
@@ -226,10 +304,22 @@ private fun EditLeadForm(
     onInfynityCustomerIdChange: (String) -> Unit,
     ksebConsumerNumber: String,
     onKsebConsumerNumberChange: (String) -> Unit,
+    atCustomerLocation: Boolean,
+    customerLocation: CustomerLocationData,
+    onAtCustomerLocationChange: (Boolean) -> Unit,
+    onCustomerLocationChange: (CustomerLocationData) -> Unit,
+    teams: List<TeamResponse>,
+    teamId: Int?,
+    onTeamChange: (Int?) -> Unit,
+    assignees: List<UserResponse>,
+    assignedToId: Int?,
+    onAssigneeChange: (Int?) -> Unit,
+    showAssignment: Boolean,
     notes: String,
     onNotesChange: (String) -> Unit,
     isSaving: Boolean,
     errorMessage: String?,
+    validationError: String?,
     onCancel: () -> Unit,
     onSave: () -> Unit
 ) {
@@ -305,11 +395,15 @@ private fun EditLeadForm(
                     enabled = !isSaving
                 )
 
-                EditTextField(
-                    value = referredBy,
-                    onValueChange = onReferredByChange,
-                    label = "Referred By",
-                    enabled = !isSaving
+                val referralChoices = buildList {
+                    add("" to "-- None --")
+                    referralOptions.forEach { add(it to it) }
+                    if (referredBy.isNotBlank() && referralOptions.none { it == referredBy }) {
+                        add(referredBy to "$referredBy (inactive)")
+                    }
+                }
+                LeadDropdownField(
+                    "Referred By", referredBy, referralChoices, onReferredByChange, !isSaving
                 )
             }
         }
@@ -333,11 +427,11 @@ private fun EditLeadForm(
                     )
                 }
 
-                EditTextField(
+                if (infynityCustomer) EditTextField(
                     value = infynityCustomerId,
-                    onValueChange = onInfynityCustomerIdChange,
-                    label = "Customer ID",
-                    enabled = !isSaving
+                    onValueChange = { onInfynityCustomerIdChange(it.take(10)) },
+                    label = "Infynity Customer ID *",
+                    enabled = infynityCustomer && !isSaving
                 )
 
                 EditTextField(
@@ -345,6 +439,35 @@ private fun EditLeadForm(
                     onValueChange = onKsebConsumerNumberChange,
                     label = "KSEB Consumer Number",
                     enabled = !isSaving
+                )
+
+                CustomerLocationFields(
+                    enabled = !isSaving,
+                    checked = atCustomerLocation,
+                    location = customerLocation,
+                    onCheckedChange = onAtCustomerLocationChange,
+                    onLocationChange = onCustomerLocationChange
+                )
+            }
+        }
+
+        if (showAssignment) item {
+            EditSectionCard(title = "Assignment") {
+                LeadDropdownField(
+                    "Team",
+                    teamId?.toString().orEmpty(),
+                    listOf("" to "-- No Team --") +
+                        teams.map { it.id.toString() to it.name },
+                    { onTeamChange(it.toIntOrNull()) },
+                    !isSaving
+                )
+                LeadDropdownField(
+                    "Assigned To",
+                    assignedToId?.toString().orEmpty(),
+                    listOf("" to "-- Unassigned --") +
+                        assignees.map { it.id.toString() to it.fullName },
+                    { onAssigneeChange(it.toIntOrNull()) },
+                    !isSaving
                 )
             }
         }
@@ -373,6 +496,11 @@ private fun EditLeadForm(
         }
 
         item {
+            if (!validationError.isNullOrBlank()) {
+                Text(validationError, color = MaterialTheme.colorScheme.error)
+                Spacer(modifier = Modifier.height(8.dp))
+            }
+
             if (!errorMessage.isNullOrBlank()) {
                 Text(
                     text = errorMessage,

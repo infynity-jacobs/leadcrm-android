@@ -247,6 +247,7 @@ fun AppShell(
                     if (creatingLead && leadCreateViewModel != null) {
                         LeadCreateScreen(
                             viewModel = leadCreateViewModel,
+                            currentUser = user,
                             onBack = {
                                 creatingLead = false
                                 leadsViewModel.refresh()
@@ -255,6 +256,7 @@ fun AppShell(
                     } else if (editingLeadId != null && leadEditViewModel != null) {
                         EditLeadScreen(
                             viewModel = leadEditViewModel,
+                            currentUser = user,
                             onBack = {
                                 editingLeadId = null
                                 leadDetailViewModel?.refresh()

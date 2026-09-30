@@ -29,11 +29,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.infynity.leadcrm.core.network.UserResponse
 import com.infynity.leadcrm.core.network.models.CreateLeadRequest
 
 @Composable
 fun LeadCreateScreen(
     viewModel: LeadCreateViewModel,
+    currentUser: UserResponse,
     onBack: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -52,6 +54,27 @@ fun LeadCreateScreen(
     var ksebConsumerNumber by remember { mutableStateOf("") }
     var notes by remember { mutableStateOf("") }
     var validationError by remember { mutableStateOf<String?>(null) }
+    var atCustomerLocation by remember { mutableStateOf(false) }
+    var customerLocation by remember { mutableStateOf(CustomerLocationData()) }
+    var teamId by remember {
+        mutableStateOf(if (currentUser.role == "team_leader") currentUser.teamId else null)
+    }
+    var assignedToId by remember { mutableStateOf<Int?>(null) }
+
+    val canAssign = currentUser.role in setOf(
+        "super_admin", "site_admin", "marketing_manager", "team_leader"
+    )
+    val availableTeams = if (currentUser.role == "team_leader") {
+        val memberships = currentUser.teamMemberships.mapNotNull { it.teamId }.toSet()
+        uiState.teams.filter { it.id in memberships || it.id == currentUser.teamId }
+    } else {
+        uiState.teams.filter { it.isActive }
+    }
+
+    LaunchedEffect(currentUser.id) { viewModel.loadFormOptions() }
+    LaunchedEffect(teamId, canAssign) {
+        if (canAssign) viewModel.loadAssignees(teamId)
+    }
 
     LaunchedEffect(uiState.saveSuccessful) {
         if (uiState.saveSuccessful) {
@@ -151,11 +174,21 @@ fun LeadCreateScreen(
                         enabled = !uiState.isSaving
                     )
 
-                    LeadCreateTextField(
-                        value = referredBy,
-                        onValueChange = { referredBy = it },
-                        label = "Referred By",
-                        enabled = !uiState.isSaving
+                    val referralChoices = buildList {
+                        add("" to "-- None --")
+                        uiState.referralOptions.filter { it.isActive }
+                            .forEach { add(it.value to it.value) }
+                        if (referredBy.isNotBlank() &&
+                            uiState.referralOptions.none { it.value == referredBy }) {
+                            add(referredBy to "$referredBy (inactive)")
+                        }
+                    }
+                    LeadDropdownField(
+                        "Referred By",
+                        referredBy,
+                        referralChoices,
+                        { referredBy = it },
+                        !uiState.isSaving
                     )
                 }
             }
@@ -174,15 +207,22 @@ fun LeadCreateScreen(
 
                         Switch(
                             checked = infynityCustomer,
-                            onCheckedChange = { infynityCustomer = it },
+                            onCheckedChange = {
+                                infynityCustomer = it
+                                if (!it) infynityCustomerId = ""
+                                validationError = null
+                            },
                             enabled = !uiState.isSaving
                         )
                     }
 
-                    LeadCreateTextField(
+                    if (infynityCustomer) LeadCreateTextField(
                         value = infynityCustomerId,
-                        onValueChange = { infynityCustomerId = it },
-                        label = "Customer ID",
+                        onValueChange = {
+                            infynityCustomerId = it.take(10)
+                            validationError = null
+                        },
+                        label = "Infynity Customer ID *",
                         enabled = !uiState.isSaving
                     )
 
@@ -191,6 +231,35 @@ fun LeadCreateScreen(
                         onValueChange = { ksebConsumerNumber = it },
                         label = "KSEB Consumer Number",
                         enabled = !uiState.isSaving
+                    )
+
+                    CustomerLocationFields(
+                        enabled = !uiState.isSaving,
+                        checked = atCustomerLocation,
+                        location = customerLocation,
+                        onCheckedChange = { atCustomerLocation = it },
+                        onLocationChange = { customerLocation = it }
+                    )
+                }
+            }
+
+            if (canAssign) item {
+                LeadCreateSectionCard(title = "Assignment") {
+                    LeadDropdownField(
+                        "Team",
+                        teamId?.toString().orEmpty(),
+                        listOf("" to "-- No Team --") +
+                            availableTeams.map { it.id.toString() to it.name },
+                        { teamId = it.toIntOrNull(); assignedToId = null },
+                        !uiState.isSaving
+                    )
+                    LeadDropdownField(
+                        "Assigned To",
+                        assignedToId?.toString().orEmpty(),
+                        listOf("" to "-- Unassigned --") +
+                            uiState.assignees.map { it.id.toString() to it.fullName },
+                        { assignedToId = it.toIntOrNull() },
+                        !uiState.isSaving
                     )
                 }
             }
@@ -252,6 +321,15 @@ fun LeadCreateScreen(
                                 infynityCustomer && cleanInfynityCustomerId.isBlank() ->
                                     "Infynity Customer ID is required."
 
+                                infynityCustomer && cleanInfynityCustomerId.length > 10 ->
+                                    "Infynity Customer ID must be no more than 10 characters."
+
+                                atCustomerLocation &&
+                                    (customerLocation.latitude.isBlank() ||
+                                     customerLocation.longitude.isBlank() ||
+                                     customerLocation.capturedAt.isBlank()) ->
+                                    "Please capture the customer location using “Use My Location” before saving."
+
                                 else ->
                                     null
                             }
@@ -266,7 +344,7 @@ fun LeadCreateScreen(
                                         phone2 = phone2.trim().ifBlank { null },
                                         infynityCustomer = infynityCustomer,
                                         infynityCustomerId = cleanInfynityCustomerId
-                                            .ifBlank { null },
+                                            .takeIf { infynityCustomer },
                                         ksebConsumerNumber = ksebConsumerNumber
                                             .trim()
                                             .ifBlank { null },
@@ -275,6 +353,17 @@ fun LeadCreateScreen(
                                         placeArea = placeArea.trim().ifBlank { null },
                                         referredBy = referredBy.trim().ifBlank { null },
                                         notes = notes.trim().ifBlank { null },
+                                        atCustomerLocation = atCustomerLocation,
+                                        customerLatitude = customerLocation.latitude
+                                            .toDoubleOrNull().takeIf { atCustomerLocation },
+                                        customerLongitude = customerLocation.longitude
+                                            .toDoubleOrNull().takeIf { atCustomerLocation },
+                                        customerLocationAccuracy = customerLocation.accuracy
+                                            .toDoubleOrNull().takeIf { atCustomerLocation },
+                                        customerLocationCapturedAt = customerLocation.capturedAt
+                                            .takeIf { atCustomerLocation && it.isNotBlank() },
+                                        teamId = teamId,
+                                        assignedToId = assignedToId,
                                         status = "new"
                                     )
                                 )

@@ -5,6 +5,9 @@ import androidx.lifecycle.viewModelScope
 import com.infynity.leadcrm.core.network.models.LeadAreaResponse
 import com.infynity.leadcrm.core.network.models.LeadDetailResponse
 import com.infynity.leadcrm.core.network.models.UpdateLeadRequest
+import com.infynity.leadcrm.core.network.UserResponse
+import com.infynity.leadcrm.core.network.models.SettingOptionResponse
+import com.infynity.leadcrm.core.network.models.TeamResponse
 import com.infynity.leadcrm.data.repository.LeadRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -20,7 +23,10 @@ data class LeadEditUiState(
     val saveSuccessful: Boolean = false,
     val isSearchingAreas: Boolean = false,
     val areaSearchResults: List<LeadAreaResponse> = emptyList(),
-    val areaSearchError: String? = null
+    val areaSearchError: String? = null,
+    val teams: List<TeamResponse> = emptyList(),
+    val assignees: List<UserResponse> = emptyList(),
+    val referralOptions: List<SettingOptionResponse> = emptyList()
 )
 
 class LeadEditViewModel(
@@ -30,6 +36,26 @@ class LeadEditViewModel(
 
     private val _uiState = MutableStateFlow(LeadEditUiState())
     val uiState: StateFlow<LeadEditUiState> = _uiState.asStateFlow()
+
+    fun loadFormOptions() {
+        viewModelScope.launch {
+            val teams = runCatching { repository.getTeams() }.getOrNull()
+            val referrals = runCatching { repository.getReferralOptions() }.getOrNull()
+            _uiState.value = _uiState.value.copy(
+                teams = teams ?: _uiState.value.teams,
+                referralOptions = referrals ?: _uiState.value.referralOptions
+            )
+        }
+    }
+
+    fun loadAssignees(teamId: Int?) {
+        viewModelScope.launch {
+            val assignees = teamId?.let {
+                runCatching { repository.getLeadAssignees(it) }.getOrNull()
+            } ?: emptyList()
+            _uiState.value = _uiState.value.copy(assignees = assignees)
+        }
+    }
 
     init {
         loadLead()
@@ -46,9 +72,10 @@ class LeadEditViewModel(
             try {
                 val lead = repository.getLead(leadId)
 
-                _uiState.value = LeadEditUiState(
+                _uiState.value = _uiState.value.copy(
                     isLoading = false,
-                    lead = lead
+                    lead = lead,
+                    errorMessage = null
                 )
             } catch (e: HttpException) {
                 val message = when (e.code()) {
