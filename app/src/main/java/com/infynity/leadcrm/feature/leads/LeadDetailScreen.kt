@@ -6,6 +6,14 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
@@ -13,6 +21,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -34,6 +43,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -65,6 +75,10 @@ import com.infynity.leadcrm.core.network.models.FollowUpResponse
 import com.infynity.leadcrm.core.voip.NativeSipManager
 import com.infynity.leadcrm.core.network.models.LeadDetailResponse
 import com.infynity.leadcrm.core.network.models.LeadHistoryResponse
+import com.infynity.leadcrm.core.network.models.LeadProduct
+import com.infynity.leadcrm.core.network.models.LeadProductCreateRequest
+import com.infynity.leadcrm.core.network.models.LeadProductUpdateRequest
+import com.infynity.leadcrm.core.network.models.Product
 
 @Composable
 fun LeadDetailScreen(
@@ -364,7 +378,17 @@ fun LeadDetailScreen(
                         onNativeCall = startNativeCallWithPermission,
                         onEndNativeCall = viewModel::endNativeCall,
                         onToggleNativeSpeaker = viewModel::toggleNativeSpeaker,
-                        onVoipCall = viewModel::initiateVoipCall
+                        onVoipCall = viewModel::initiateVoipCall,
+                        products = uiState.products,
+                        availableProducts = uiState.availableProducts,
+                        isLoadingProducts = uiState.isLoadingProducts,
+                        isSavingProduct = uiState.isSavingProduct,
+                        productErrorMessage = uiState.productErrorMessage,
+                        onLoadProducts = viewModel::loadProducts,
+                        onAddProduct = viewModel::addLeadProduct,
+                        onUpdateProduct = viewModel::updateLeadProduct,
+                        onDeleteProduct = viewModel::deleteLeadProduct,
+                        onClearProductError = viewModel::clearProductError
                     )
                 } else {
                     LeadDocumentsContent(
@@ -735,6 +759,17 @@ private fun formatDocumentSize(size: Long): String {
     }
 }
 
+private fun formatLeadProductMoney(
+    currency: String?,
+    amount: Int
+): String {
+    val symbol = when (currency?.uppercase()) {
+        null, "", "INR" -> "₹"
+        else -> currency
+    }
+    return "$symbol ${String.format(Locale.getDefault(), "%,d", amount)}"
+}
+
 @Composable
 private fun LeadDetailContent(
     lead: LeadDetailResponse,
@@ -747,8 +782,22 @@ private fun LeadDetailContent(
     onNativeCall: () -> Unit,
     onEndNativeCall: () -> Unit,
     onToggleNativeSpeaker: () -> Unit,
-    onVoipCall: () -> Unit
+    onVoipCall: () -> Unit,
+    products: List<LeadProduct>,
+    availableProducts: List<Product>,
+    isLoadingProducts: Boolean,
+    isSavingProduct: Boolean,
+    productErrorMessage: String?,
+    onLoadProducts: () -> Unit,
+    onAddProduct: (LeadProductCreateRequest) -> Unit,
+    onUpdateProduct: (Int, LeadProductUpdateRequest) -> Unit,
+    onDeleteProduct: (Int) -> Unit,
+    onClearProductError: () -> Unit
 ) {
+    var productEditorOpen by remember { mutableStateOf(false) }
+    var editingProduct by remember { mutableStateOf<LeadProduct?>(null) }
+    var removeProduct by remember { mutableStateOf<LeadProduct?>(null) }
+
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
@@ -821,15 +870,132 @@ private fun LeadDetailContent(
             }
         }
 
-        if (lead.productNames.isNotEmpty()) {
+        if (products.isNotEmpty() || availableProducts.isNotEmpty() || isLoadingProducts) {
             item {
                 LeadSectionCard(title = "Products") {
-                    lead.productNames.forEach { product ->
-                        Text(
-                            text = "• $product",
-                            style = MaterialTheme.typography.bodyMedium,
-                            modifier = Modifier.padding(vertical = 2.dp)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End
+                    ) {
+                        OutlinedButton(
+                            onClick = {
+                                editingProduct = null
+                                onClearProductError()
+                                if (availableProducts.isEmpty()) {
+                                    onLoadProducts()
+                                }
+                                productEditorOpen = true
+                            },
+                            enabled = !isSavingProduct
+                        ) {
+                            Text("+ Add Product")
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    if (isLoadingProducts) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.padding(vertical = 8.dp)
                         )
+                    }
+
+                    productErrorMessage?.let { message ->
+                        Text(
+                            text = message,
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier.padding(vertical = 4.dp)
+                        )
+                    }
+
+                    if (products.isEmpty() && !isLoadingProducts) {
+                        Text(
+                            text = "No products assigned",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    } else {
+                        products.forEach { product ->
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 4.dp)
+                            ) {
+                                Column(
+                                    modifier = Modifier.padding(12.dp)
+                                ) {
+                                    Text(
+                                        text = product.productName
+                                            ?: "Product #${product.productId}",
+                                        style = MaterialTheme.typography.titleSmall,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+
+                                    product.sku?.takeIf { it.isNotBlank() }?.let {
+                                        Text(
+                                            text = "SKU: $it",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+
+                                    Text(
+                                        text = "Quantity: ${product.quantity}",
+                                        style = MaterialTheme.typography.bodyMedium
+                                    )
+
+                                    Text(
+                                        text = "Interest: ${
+                                            product.interestStatus.replaceFirstChar {
+                                                it.uppercase()
+                                            }
+                                        }",
+                                        style = MaterialTheme.typography.bodyMedium
+                                    )
+
+                                    product.quotedPrice?.let {
+                                        Text(
+                                            text = "Quoted Price: ${
+                                                formatLeadProductMoney(product.currency, it)
+                                            }",
+                                            style = MaterialTheme.typography.bodyMedium
+                                        )
+                                    }
+
+                                    product.notes?.takeIf { it.isNotBlank() }?.let {
+                                        Text(
+                                            text = "Notes: $it",
+                                            style = MaterialTheme.typography.bodyMedium
+                                        )
+                                    }
+
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.End
+                                    ) {
+                                        TextButton(
+                                            onClick = {
+                                                editingProduct = product
+                                                onClearProductError()
+                                                productEditorOpen = true
+                                            },
+                                            enabled = !isSavingProduct
+                                        ) {
+                                            Text("Edit")
+                                        }
+
+                                        TextButton(
+                                            onClick = {
+                                                removeProduct = product
+                                            },
+                                            enabled = !isSavingProduct
+                                        ) {
+                                            Text("Remove")
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -880,6 +1046,473 @@ private fun LeadDetailContent(
             Spacer(modifier = Modifier.height(16.dp))
         }
     }
+
+    if (removeProduct != null && !isSavingProduct) {
+        val productToRemove = removeProduct
+
+        AlertDialog(
+            onDismissRequest = {
+                removeProduct = null
+            },
+            title = {
+                Text("Remove Product?")
+            },
+            text = {
+                Text(
+                    "Remove ${
+                        productToRemove?.productName
+                            ?: "this product"
+                    } from this lead?"
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        productToRemove?.let {
+                            onDeleteProduct(it.id)
+                        }
+                        removeProduct = null
+                    }
+                ) {
+                    Text("Remove")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        removeProduct = null
+                    }
+                ) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
+    if (productEditorOpen) {
+        LeadProductEditorDialog(
+            editingProduct = editingProduct,
+            availableProducts = availableProducts,
+            isSaving = isSavingProduct,
+            errorMessage = productErrorMessage,
+            onDismiss = {
+                if (!isSavingProduct) {
+                    productEditorOpen = false
+                    editingProduct = null
+                    onClearProductError()
+                }
+            },
+            onAdd = { request ->
+                onAddProduct(request)
+            },
+            onUpdate = { request ->
+                editingProduct?.let { product ->
+                    onUpdateProduct(product.id, request)
+                }
+            }
+        )
+    }
+}
+
+@Composable
+private fun LeadProductEditorDialog(
+    editingProduct: LeadProduct?,
+    availableProducts: List<Product>,
+    isSaving: Boolean,
+    errorMessage: String?,
+    onDismiss: () -> Unit,
+    onAdd: (LeadProductCreateRequest) -> Unit,
+    onUpdate: (LeadProductUpdateRequest) -> Unit
+) {
+    var selectedProductId by remember(editingProduct?.id) {
+        mutableStateOf(editingProduct?.productId)
+    }
+    var quantityText by remember(editingProduct?.id) {
+        mutableStateOf(editingProduct?.quantity?.toString() ?: "1")
+    }
+    var interestStatus by remember(editingProduct?.id) {
+        mutableStateOf(editingProduct?.interestStatus ?: "interested")
+    }
+    var quotedPriceText by remember(editingProduct?.id) {
+        mutableStateOf(editingProduct?.quotedPrice?.toString() ?: "")
+    }
+    var notesText by remember(editingProduct?.id) {
+        mutableStateOf(editingProduct?.notes.orEmpty())
+    }
+    var validationError by remember(editingProduct?.id) {
+        mutableStateOf<String?>(null)
+    }
+    var saveSubmitted by remember(editingProduct?.id) {
+        mutableStateOf(false)
+    }
+    var saveStarted by remember(editingProduct?.id) {
+        mutableStateOf(false)
+    }
+
+    LaunchedEffect(isSaving, errorMessage, saveSubmitted) {
+        if (isSaving) {
+            saveStarted = true
+        } else if (
+            saveSubmitted &&
+            saveStarted &&
+            errorMessage == null
+        ) {
+            onDismiss()
+        }
+    }
+
+    var productPickerOpen by remember { mutableStateOf(false) }
+    var productSearchText by remember { mutableStateOf("") }
+    var interestMenuExpanded by remember { mutableStateOf(false) }
+
+    val selectedProduct = availableProducts.firstOrNull {
+        it.id == selectedProductId
+    }
+
+    val filteredProducts = remember(
+        availableProducts,
+        productSearchText
+    ) {
+        val query = productSearchText.trim()
+        if (query.isBlank()) {
+            availableProducts
+        } else {
+            availableProducts.filter { product ->
+                product.name.contains(query, ignoreCase = true) ||
+                    product.sku?.contains(query, ignoreCase = true) == true
+            }
+        }
+    }
+
+    if (productPickerOpen) {
+        AlertDialog(
+            onDismissRequest = {
+                if (!isSaving) {
+                    productPickerOpen = false
+                }
+            },
+            title = {
+                Text("Select Product")
+            },
+            text = {
+                Column {
+                    OutlinedTextField(
+                        value = productSearchText,
+                        onValueChange = {
+                            productSearchText = it
+                        },
+                        label = {
+                            Text("Search product or SKU")
+                        },
+                        singleLine = true,
+                        enabled = !isSaving,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    LazyColumn(
+                        modifier = Modifier.heightIn(max = 320.dp)
+                    ) {
+                        if (filteredProducts.isEmpty()) {
+                            item {
+                                Text(
+                                    text = "No matching products",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    modifier = Modifier.padding(vertical = 12.dp)
+                                )
+                            }
+                        } else {
+                            items(
+                                items = filteredProducts,
+                                key = { it.id }
+                            ) { product ->
+                                TextButton(
+                                    onClick = {
+                                        selectedProductId = product.id
+                                        productPickerOpen = false
+                                    },
+                                    enabled = !isSaving,
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Column(
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        Text(
+                                            text = product.name,
+                                            fontWeight = FontWeight.SemiBold
+                                        )
+                                        product.sku?.takeIf {
+                                            it.isNotBlank()
+                                        }?.let {
+                                            Text(
+                                                text = it,
+                                                style = MaterialTheme.typography.bodySmall
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        if (!isSaving) {
+                            productPickerOpen = false
+                        }
+                    }
+                ) {
+                    Text("Close")
+                }
+            }
+        )
+    }
+
+    AlertDialog(
+        onDismissRequest = {
+            if (!isSaving) {
+                onDismiss()
+            }
+        },
+        title = {
+            Text(
+                if (editingProduct == null) "Add Product"
+                else "Edit Product"
+            )
+        },
+        text = {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState())
+            ) {
+                if (editingProduct == null) {
+                    OutlinedButton(
+                        onClick = {
+                            productSearchText = ""
+                            productPickerOpen = true
+                        },
+                        enabled = !isSaving,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            selectedProduct?.name
+                                ?: "Select Product *"
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+                } else {
+                    Text(
+                        text = selectedProduct?.name
+                            ?: editingProduct.productName
+                            ?: "Product #${editingProduct.productId}",
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.SemiBold
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+                }
+
+                OutlinedTextField(
+                    value = quantityText,
+                    onValueChange = {
+                        if (it.all(Char::isDigit)) {
+                            quantityText = it
+                        }
+                    },
+                    label = { Text("Quantity *") },
+                    singleLine = true,
+                    enabled = !isSaving,
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Number
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Box {
+                    OutlinedButton(
+                        onClick = {
+                            interestMenuExpanded = true
+                        },
+                        enabled = !isSaving,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            "Interest: ${
+                                interestStatus.replaceFirstChar {
+                                    it.uppercase()
+                                }
+                            }"
+                        )
+                    }
+
+                    DropdownMenu(
+                        expanded = interestMenuExpanded,
+                        onDismissRequest = {
+                            interestMenuExpanded = false
+                        }
+                    ) {
+                        listOf(
+                            "interested",
+                            "quoted",
+                            "not_interested"
+                        ).forEach { status ->
+                            DropdownMenuItem(
+                                text = {
+                                    Text(
+                                        status.replaceFirstChar {
+                                            it.uppercase()
+                                        }
+                                    )
+                                },
+                                onClick = {
+                                    interestStatus = status
+                                    interestMenuExpanded = false
+                                }
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                OutlinedTextField(
+                    value = quotedPriceText,
+                    onValueChange = {
+                        if (it.all(Char::isDigit)) {
+                            quotedPriceText = it
+                        }
+                    },
+                    label = { Text("Quoted Price (optional)") },
+                    singleLine = true,
+                    enabled = !isSaving,
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Number
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                OutlinedTextField(
+                    value = notesText,
+                    onValueChange = {
+                        notesText = it
+                    },
+                    label = { Text("Notes (optional)") },
+                    enabled = !isSaving,
+                    minLines = 3,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                validationError?.let { message ->
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Text(
+                        text = message,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+
+                errorMessage?.let { message ->
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Text(
+                        text = message,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+
+                if (isSaving) {
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        CircularProgressIndicator()
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                enabled = !isSaving,
+                onClick = {
+                    val quantity = quantityText.toIntOrNull()
+                    val quotedPrice = quotedPriceText
+                        .takeIf { it.isNotBlank() }
+                        ?.toIntOrNull()
+
+                    validationError = when {
+                        editingProduct == null &&
+                            selectedProductId == null ->
+                            "Please select a product."
+
+                        quantity == null || quantity < 1 ->
+                            "Quantity must be at least 1."
+
+                        quotedPriceText.isNotBlank() &&
+                            quotedPrice == null ->
+                            "Quoted price must be a valid number."
+
+                        quotedPrice != null && quotedPrice < 0 ->
+                            "Quoted price cannot be negative."
+
+                        else -> null
+                    }
+
+                    if (validationError != null) {
+                        return@TextButton
+                    }
+
+                    saveSubmitted = true
+
+                    if (editingProduct == null) {
+                        onAdd(
+                            LeadProductCreateRequest(
+                                productId = selectedProductId!!,
+                                quantity = quantity!!,
+                                interestStatus = interestStatus,
+                                quotedPrice = quotedPrice,
+                                notes = notesText
+                                    .takeIf { it.isNotBlank() }
+                            )
+                        )
+                    } else {
+                        onUpdate(
+                            LeadProductUpdateRequest(
+                                quantity = quantity!!,
+                                interestStatus = interestStatus,
+                                quotedPrice = quotedPrice,
+                                notes = notesText
+                                    .takeIf { it.isNotBlank() }
+                            )
+                        )
+                    }
+                }
+            ) {
+                Text(
+                    if (editingProduct == null) "Add"
+                    else "Save"
+                )
+            }
+        },
+        dismissButton = {
+            TextButton(
+                enabled = !isSaving,
+                onClick = onDismiss
+            ) {
+                Text("Cancel")
+            }
+        }
+    )
 }
 
 @Composable

@@ -5,6 +5,10 @@ import com.infynity.leadcrm.core.network.models.CreateLeadRequest
 import com.infynity.leadcrm.core.network.models.LeadAreaResponse
 import com.infynity.leadcrm.core.network.models.LeadDetailResponse
 import com.infynity.leadcrm.core.network.models.LeadDocument
+import com.infynity.leadcrm.core.network.models.LeadProduct
+import com.infynity.leadcrm.core.network.models.LeadProductCreateRequest
+import com.infynity.leadcrm.core.network.models.LeadProductUpdateRequest
+import com.infynity.leadcrm.core.network.models.Product
 import com.infynity.leadcrm.core.network.models.LeadDocumentRequirementsResponse
 import com.infynity.leadcrm.core.network.models.LeadListResponse
 import com.infynity.leadcrm.core.network.models.LeadResponse
@@ -87,6 +91,50 @@ class LeadRepository(
             NativeCallStartRequest(
                 leadId = leadId
             )
+        )
+    }
+
+    suspend fun getProducts(
+        activeOnly: Boolean = true
+    ): List<Product> {
+        return api.getProducts(activeOnly = activeOnly)
+    }
+
+    suspend fun getLeadProducts(
+        leadId: Int
+    ): List<LeadProduct> {
+        return api.getLeadProducts(leadId)
+    }
+
+    suspend fun addLeadProduct(
+        leadId: Int,
+        request: LeadProductCreateRequest
+    ): LeadProduct {
+        return api.addLeadProduct(
+            leadId = leadId,
+            request = request
+        )
+    }
+
+    suspend fun updateLeadProduct(
+        leadId: Int,
+        itemId: Int,
+        request: LeadProductUpdateRequest
+    ): LeadProduct {
+        return api.updateLeadProduct(
+            leadId = leadId,
+            itemId = itemId,
+            request = request
+        )
+    }
+
+    suspend fun deleteLeadProduct(
+        leadId: Int,
+        itemId: Int
+    ): Map<String, String> {
+        return api.deleteLeadProduct(
+            leadId = leadId,
+            itemId = itemId
         )
     }
 

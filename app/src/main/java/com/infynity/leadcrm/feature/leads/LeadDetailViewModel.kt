@@ -6,6 +6,10 @@ import androidx.lifecycle.viewModelScope
 import com.infynity.leadcrm.core.network.models.LeadDetailResponse
 import com.infynity.leadcrm.core.network.models.LeadDocument
 import com.infynity.leadcrm.core.network.models.LeadDocumentRequirement
+import com.infynity.leadcrm.core.network.models.LeadProduct
+import com.infynity.leadcrm.core.network.models.LeadProductCreateRequest
+import com.infynity.leadcrm.core.network.models.LeadProductUpdateRequest
+import com.infynity.leadcrm.core.network.models.Product
 import com.infynity.leadcrm.core.voip.NativeSipManager
 import com.infynity.leadcrm.data.repository.LeadRepository
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -25,6 +29,11 @@ data class LeadDetailUiState(
     val lead: LeadDetailResponse? = null,
     val documentRequirements: List<LeadDocumentRequirement> = emptyList(),
     val documents: List<LeadDocument> = emptyList(),
+    val products: List<LeadProduct> = emptyList(),
+    val availableProducts: List<Product> = emptyList(),
+    val isLoadingProducts: Boolean = false,
+    val isSavingProduct: Boolean = false,
+    val productErrorMessage: String? = null,
     val isLoadingDocuments: Boolean = false,
     val isUploadingDocument: Boolean = false,
     val documentErrorMessage: String? = null,
@@ -92,6 +101,7 @@ class LeadDetailViewModel(
                     lead = lead,
                     errorMessage = null
                 )
+                loadProducts()
                 loadDocuments()
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(
@@ -104,6 +114,165 @@ class LeadDetailViewModel(
 
     fun refresh() {
         loadLead()
+    }
+
+    fun loadProducts() {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(
+                isLoadingProducts = true,
+                productErrorMessage = null
+            )
+
+            try {
+                val products = repository.getLeadProducts(leadId)
+                val availableProducts = repository.getProducts(activeOnly = true)
+
+                _uiState.value = _uiState.value.copy(
+                    isLoadingProducts = false,
+                    products = products,
+                    availableProducts = availableProducts,
+                    productErrorMessage = null
+                )
+            } catch (e: HttpException) {
+                _uiState.value = _uiState.value.copy(
+                    isLoadingProducts = false,
+                    productErrorMessage = "Unable to load products: HTTP ${e.code()}"
+                )
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(
+                    isLoadingProducts = false,
+                    productErrorMessage = e.message ?: "Unable to load products"
+                )
+            }
+        }
+    }
+
+    fun addLeadProduct(request: LeadProductCreateRequest) {
+        if (_uiState.value.isSavingProduct) return
+
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(
+                isSavingProduct = true,
+                productErrorMessage = null
+            )
+
+            try {
+                repository.addLeadProduct(
+                    leadId = leadId,
+                    request = request
+                )
+
+                val lead = repository.getLead(leadId)
+                val products = repository.getLeadProducts(leadId)
+                val availableProducts = repository.getProducts(activeOnly = true)
+
+                _uiState.value = _uiState.value.copy(
+                    isSavingProduct = false,
+                    lead = lead,
+                    products = products,
+                    availableProducts = availableProducts,
+                    productErrorMessage = null
+                )
+
+                loadDocuments()
+            } catch (e: HttpException) {
+                _uiState.value = _uiState.value.copy(
+                    isSavingProduct = false,
+                    productErrorMessage = "Unable to add product: HTTP ${e.code()}"
+                )
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(
+                    isSavingProduct = false,
+                    productErrorMessage = e.message ?: "Unable to add product"
+                )
+            }
+        }
+    }
+
+    fun updateLeadProduct(
+        itemId: Int,
+        request: LeadProductUpdateRequest
+    ) {
+        if (_uiState.value.isSavingProduct) return
+
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(
+                isSavingProduct = true,
+                productErrorMessage = null
+            )
+
+            try {
+                repository.updateLeadProduct(
+                    leadId = leadId,
+                    itemId = itemId,
+                    request = request
+                )
+
+                val products = repository.getLeadProducts(leadId)
+
+                _uiState.value = _uiState.value.copy(
+                    isSavingProduct = false,
+                    products = products,
+                    productErrorMessage = null
+                )
+            } catch (e: HttpException) {
+                _uiState.value = _uiState.value.copy(
+                    isSavingProduct = false,
+                    productErrorMessage = "Unable to update product: HTTP ${e.code()}"
+                )
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(
+                    isSavingProduct = false,
+                    productErrorMessage = e.message ?: "Unable to update product"
+                )
+            }
+        }
+    }
+
+    fun deleteLeadProduct(itemId: Int) {
+        if (_uiState.value.isSavingProduct) return
+
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(
+                isSavingProduct = true,
+                productErrorMessage = null
+            )
+
+            try {
+                repository.deleteLeadProduct(
+                    leadId = leadId,
+                    itemId = itemId
+                )
+
+                val lead = repository.getLead(leadId)
+                val products = repository.getLeadProducts(leadId)
+
+                _uiState.value = _uiState.value.copy(
+                    isSavingProduct = false,
+                    lead = lead,
+                    products = products,
+                    productErrorMessage = null
+                )
+
+                loadDocuments()
+            } catch (e: HttpException) {
+                _uiState.value = _uiState.value.copy(
+                    isSavingProduct = false,
+                    productErrorMessage = "Unable to remove product: HTTP ${e.code()}"
+                )
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(
+                    isSavingProduct = false,
+                    productErrorMessage = e.message ?: "Unable to remove product"
+                )
+            }
+        }
+    }
+
+    fun clearProductError() {
+        _uiState.value = _uiState.value.copy(
+            productErrorMessage = null
+        )
     }
 
     fun loadDocuments() {

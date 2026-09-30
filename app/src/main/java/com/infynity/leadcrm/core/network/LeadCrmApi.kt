@@ -1,6 +1,10 @@
 package com.infynity.leadcrm.core.network
 
 import com.infynity.leadcrm.core.network.models.LeadDocument
+import com.infynity.leadcrm.core.network.models.LeadProduct
+import com.infynity.leadcrm.core.network.models.LeadProductCreateRequest
+import com.infynity.leadcrm.core.network.models.LeadProductUpdateRequest
+import com.infynity.leadcrm.core.network.models.Product
 import com.infynity.leadcrm.core.network.models.LeadDocumentRequirementsResponse
 
 import com.infynity.leadcrm.core.network.models.CalendarEventCreateRequest
@@ -163,6 +167,35 @@ interface LeadCrmApi {
         @Path("leadId") leadId: Int,
         @Body request: JsonObject
     ): LeadResponse
+
+    @GET("products")
+    suspend fun getProducts(
+        @Query("active_only") activeOnly: Boolean = true
+    ): List<Product>
+
+    @GET("leads/{leadId}/products")
+    suspend fun getLeadProducts(
+        @Path("leadId") leadId: Int
+    ): List<LeadProduct>
+
+    @POST("leads/{leadId}/products")
+    suspend fun addLeadProduct(
+        @Path("leadId") leadId: Int,
+        @Body request: LeadProductCreateRequest
+    ): LeadProduct
+
+    @PUT("leads/{leadId}/products/{itemId}")
+    suspend fun updateLeadProduct(
+        @Path("leadId") leadId: Int,
+        @Path("itemId") itemId: Int,
+        @Body request: LeadProductUpdateRequest
+    ): LeadProduct
+
+    @retrofit2.http.DELETE("leads/{leadId}/products/{itemId}")
+    suspend fun deleteLeadProduct(
+        @Path("leadId") leadId: Int,
+        @Path("itemId") itemId: Int
+    ): Map<String, String>
 
     @GET("leads/{leadId}/documents/requirements")
     suspend fun getLeadDocumentRequirements(
