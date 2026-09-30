@@ -202,7 +202,8 @@ fun AppShell(
             key = "lead-detail-$leadId",
             factory = LeadDetailViewModelFactory(
                 application.appContainer.leadRepository,
-                leadId
+                leadId,
+                LocalContext.current.applicationContext
             )
         )
     }

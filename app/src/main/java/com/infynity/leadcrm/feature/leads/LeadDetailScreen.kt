@@ -1,5 +1,9 @@
 package com.infynity.leadcrm.feature.leads
 
+import android.Manifest
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -49,6 +53,7 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 import com.infynity.leadcrm.core.network.models.FollowUpResponse
+import com.infynity.leadcrm.core.voip.NativeSipManager
 import com.infynity.leadcrm.core.network.models.LeadDetailResponse
 import com.infynity.leadcrm.core.network.models.LeadHistoryResponse
 
@@ -61,6 +66,28 @@ fun LeadDetailScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var showDeleteConfirmation by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+
+    val microphonePermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (granted) {
+            viewModel.initiateNativeCall()
+        }
+    }
+
+    val startNativeCallWithPermission: () -> Unit = {
+        if (
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.RECORD_AUDIO
+            ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        ) {
+            viewModel.initiateNativeCall()
+        } else {
+            microphonePermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+        }
+    }
 
     Column(
         modifier = Modifier.fillMaxSize()
@@ -120,7 +147,6 @@ fun LeadDetailScreen(
 
         if (uiState.deleteSuccessful) {
             LaunchedEffect(Unit) {
-                viewModel.clearDeleteSuccess()
                 onBack()
             }
         }
@@ -190,7 +216,19 @@ fun LeadDetailScreen(
             }
 
             uiState.lead != null -> {
-                LeadDetailContent(lead = uiState.lead!!)
+                LeadDetailContent(
+                    lead = uiState.lead!!,
+                    isCalling = uiState.isCalling,
+                    callMessage = uiState.callMessage,
+                    isNativeCalling = uiState.isNativeCalling,
+                    nativeCallState = uiState.nativeCallState,
+                    nativeCallMessage = uiState.nativeCallMessage,
+                    isSpeakerEnabled = uiState.isSpeakerEnabled,
+                    onNativeCall = startNativeCallWithPermission,
+                    onEndNativeCall = viewModel::endNativeCall,
+                    onToggleNativeSpeaker = viewModel::toggleNativeSpeaker,
+                    onVoipCall = viewModel::initiateVoipCall
+                )
 
                 if (uiState.isDeleting) {
                     Text(
@@ -206,7 +244,17 @@ fun LeadDetailScreen(
 
 @Composable
 private fun LeadDetailContent(
-    lead: LeadDetailResponse
+    lead: LeadDetailResponse,
+    isCalling: Boolean,
+    callMessage: String?,
+    isNativeCalling: Boolean,
+    nativeCallState: NativeSipManager.State,
+    nativeCallMessage: String?,
+    isSpeakerEnabled: Boolean,
+    onNativeCall: () -> Unit,
+    onEndNativeCall: () -> Unit,
+    onToggleNativeSpeaker: () -> Unit,
+    onVoipCall: () -> Unit
 ) {
     LazyColumn(
         modifier = Modifier
@@ -232,7 +280,17 @@ private fun LeadDetailContent(
                 LeadContactActions(
                     phone = lead.phone,
                     phone2 = lead.phone2,
-                    email = lead.email
+                    email = lead.email,
+                    isCalling = isCalling,
+                    callMessage = callMessage,
+                    isNativeCalling = isNativeCalling,
+                    nativeCallState = nativeCallState,
+                    nativeCallMessage = nativeCallMessage,
+                    isSpeakerEnabled = isSpeakerEnabled,
+                    onNativeCall = onNativeCall,
+                    onEndNativeCall = onEndNativeCall,
+                    onToggleNativeSpeaker = onToggleNativeSpeaker,
+                    onVoipCall = onVoipCall
                 )
             }
         }
@@ -335,7 +393,17 @@ private fun LeadDetailContent(
 private fun LeadContactActions(
     phone: String?,
     phone2: String?,
-    email: String?
+    email: String?,
+    isCalling: Boolean,
+    callMessage: String?,
+    isNativeCalling: Boolean,
+    nativeCallState: NativeSipManager.State,
+    nativeCallMessage: String?,
+    isSpeakerEnabled: Boolean,
+    onNativeCall: () -> Unit,
+    onEndNativeCall: () -> Unit,
+    onToggleNativeSpeaker: () -> Unit,
+    onVoipCall: () -> Unit
 ) {
     val context = LocalContext.current
 
@@ -348,39 +416,119 @@ private fun LeadContactActions(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Button(
-                    onClick = {
-                        val intent = Intent(
-                            Intent.ACTION_DIAL,
-                            Uri.parse("tel:${Uri.encode(number)}")
-                        )
-                        context.startActivity(intent)
-                    },
+                    onClick = onNativeCall,
+                    enabled = !isNativeCalling && !isCalling,
                     modifier = Modifier.weight(1f)
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Call,
-                        contentDescription = "Call"
-                    )
+                    if (isNativeCalling) {
+                        CircularProgressIndicator(
+                            modifier = Modifier
+                                .width(18.dp)
+                                .height(18.dp),
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Default.Call,
+                            contentDescription = "Call"
+                        )
+                    }
+
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text("Call")
+                    Text(if (isNativeCalling) "Calling..." else "Call")
                 }
 
                 Button(
-                    onClick = {
-                        val intent = Intent(
-                            Intent.ACTION_VIEW,
-                            Uri.parse("https://wa.me/${formatWhatsAppNumber(number)}")
-                        )
-                        context.startActivity(intent)
-                    },
+                    onClick = onVoipCall,
+                    enabled = !isCalling && !isNativeCalling,
                     modifier = Modifier.weight(1f)
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Message,
-                        contentDescription = "WhatsApp"
-                    )
+                    if (isCalling) {
+                        CircularProgressIndicator(
+                            modifier = Modifier
+                                .width(18.dp)
+                                .height(18.dp),
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Default.Call,
+                            contentDescription = "PBX Call"
+                        )
+                    }
+
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text("WhatsApp")
+                    Text(if (isCalling) "Calling..." else "PBX Call")
+                }
+            }
+
+            Button(
+                onClick = {
+                    val intent = Intent(
+                        Intent.ACTION_VIEW,
+                        Uri.parse("https://wa.me/${formatWhatsAppNumber(number)}")
+                    )
+                    context.startActivity(intent)
+                },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Message,
+                    contentDescription = "WhatsApp"
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text("WhatsApp")
+            }
+
+            callMessage?.let { message ->
+                Text(
+                    text = message,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (isCalling) {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    } else {
+                        MaterialTheme.colorScheme.primary
+                    }
+                )
+            }
+
+            nativeCallMessage?.let { message ->
+                Text(
+                    text = message,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (isNativeCalling) {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    } else {
+                        MaterialTheme.colorScheme.primary
+                    }
+                )
+            }
+
+            if (isNativeCalling) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    if (nativeCallState == NativeSipManager.State.Connected) {
+                        Button(
+                            onClick = onToggleNativeSpeaker,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text(if (isSpeakerEnabled) "Earpiece" else "Speaker")
+                        }
+                    }
+
+                    Button(
+                        onClick = onEndNativeCall,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Call,
+                            contentDescription = "End call"
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Hang Up")
+                    }
                 }
             }
         }

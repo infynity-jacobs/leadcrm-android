@@ -7,6 +7,10 @@ import com.infynity.leadcrm.core.network.models.LeadDetailResponse
 import com.infynity.leadcrm.core.network.models.LeadListResponse
 import com.infynity.leadcrm.core.network.models.LeadResponse
 import com.infynity.leadcrm.core.network.models.UpdateLeadRequest
+import com.infynity.leadcrm.core.network.models.VoipCallRequest
+import com.infynity.leadcrm.core.network.models.VoipCallResponse
+import com.infynity.leadcrm.core.network.models.NativeCallStartRequest
+import com.infynity.leadcrm.core.network.models.NativeCallStartResponse
 
 class LeadRepository(
     private val api: LeadCrmApi
@@ -47,6 +51,29 @@ class LeadRepository(
 
     suspend fun createLead(request: CreateLeadRequest): LeadResponse {
         return api.createLead(request)
+    }
+
+
+    suspend fun initiateVoipCall(
+        leadId: Int,
+        autoanswer: String = "no"
+    ): VoipCallResponse {
+        return api.initiateVoipCall(
+            VoipCallRequest(
+                leadId = leadId,
+                autoanswer = autoanswer
+            )
+        )
+    }
+
+    suspend fun startNativeCall(
+        leadId: Int
+    ): NativeCallStartResponse {
+        return api.startNativeCall(
+            NativeCallStartRequest(
+                leadId = leadId
+            )
+        )
     }
 
     suspend fun deleteLead(leadId: Int): Map<String, String> {

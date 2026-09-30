@@ -14,6 +14,10 @@ import com.infynity.leadcrm.core.network.models.TaskListResponse
 import com.infynity.leadcrm.core.network.models.TaskResponse
 import com.infynity.leadcrm.core.network.models.TaskUpdateRequest
 import com.infynity.leadcrm.core.network.models.TaskStatusResponse
+import com.infynity.leadcrm.core.network.models.VoipCallRequest
+import com.infynity.leadcrm.core.network.models.VoipCallResponse
+import com.infynity.leadcrm.core.network.models.NativeCallStartRequest
+import com.infynity.leadcrm.core.network.models.NativeCallStartResponse
 import retrofit2.http.Body
 import retrofit2.http.Field
 import retrofit2.http.FormUrlEncoded
@@ -94,6 +98,17 @@ interface LeadCrmApi {
         @Query("active_only") activeOnly: Boolean = true,
         @Query("search") search: String? = null
     ): List<LeadAreaResponse>
+
+
+    @POST("voip/call")
+    suspend fun initiateVoipCall(
+        @Body request: VoipCallRequest
+    ): VoipCallResponse
+
+    @POST("voip/native-call/start")
+    suspend fun startNativeCall(
+        @Body request: NativeCallStartRequest
+    ): NativeCallStartResponse
 
     @GET("leads")
     suspend fun getLeads(
