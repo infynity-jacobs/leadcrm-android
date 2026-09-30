@@ -5,6 +5,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.rememberScrollState
@@ -79,13 +80,15 @@ import com.infynity.leadcrm.core.network.models.LeadProduct
 import com.infynity.leadcrm.core.network.models.LeadProductCreateRequest
 import com.infynity.leadcrm.core.network.models.LeadProductUpdateRequest
 import com.infynity.leadcrm.core.network.models.Product
+import com.infynity.leadcrm.core.network.models.TaskResponse
 
 @Composable
 fun LeadDetailScreen(
     viewModel: LeadDetailViewModel,
     canDeleteLead: Boolean,
     onBack: () -> Unit,
-    onEdit: () -> Unit
+    onEdit: () -> Unit,
+    onTaskSelected: (Int) -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var showDeleteConfirmation by remember { mutableStateOf(false) }
@@ -388,7 +391,12 @@ fun LeadDetailScreen(
                         onAddProduct = viewModel::addLeadProduct,
                         onUpdateProduct = viewModel::updateLeadProduct,
                         onDeleteProduct = viewModel::deleteLeadProduct,
-                        onClearProductError = viewModel::clearProductError
+                        onClearProductError = viewModel::clearProductError,
+                        tasks = uiState.tasks,
+                        isLoadingTasks = uiState.isLoadingTasks,
+                        taskErrorMessage = uiState.taskErrorMessage,
+                        onLoadTasks = viewModel::loadTasks,
+                        onTaskSelected = onTaskSelected
                     )
                 } else {
                     LeadDocumentsContent(
@@ -792,7 +800,12 @@ private fun LeadDetailContent(
     onAddProduct: (LeadProductCreateRequest) -> Unit,
     onUpdateProduct: (Int, LeadProductUpdateRequest) -> Unit,
     onDeleteProduct: (Int) -> Unit,
-    onClearProductError: () -> Unit
+    onClearProductError: () -> Unit,
+    tasks: List<TaskResponse>,
+    isLoadingTasks: Boolean,
+    taskErrorMessage: String?,
+    onLoadTasks: () -> Unit,
+    onTaskSelected: (Int) -> Unit
 ) {
     var productEditorOpen by remember { mutableStateOf(false) }
     var editingProduct by remember { mutableStateOf<LeadProduct?>(null) }
@@ -993,6 +1006,68 @@ private fun LeadDetailContent(
                                             Text("Remove")
                                         }
                                     }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        item {
+            LeadSectionCard(title = "Tasks") {
+                if (isLoadingTasks) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.padding(vertical = 8.dp)
+                    )
+                }
+
+                taskErrorMessage?.let { message ->
+                    Text(
+                        text = message,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(vertical = 4.dp)
+                    )
+
+                    TextButton(onClick = onLoadTasks) {
+                        Text("Retry")
+                    }
+                }
+
+                if (tasks.isEmpty() && !isLoadingTasks && taskErrorMessage == null) {
+                    Text(
+                        text = "No tasks",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                } else {
+                    tasks.forEach { task ->
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp)
+                                .clickable { onTaskSelected(task.id) }
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(12.dp)
+                            ) {
+                                Text(
+                                    text = task.title,
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+
+                                task.statusName?.takeIf { it.isNotBlank() }?.let {
+                                    DetailText("Status", it)
+                                }
+
+                                DetailText("Priority", task.priority)
+                                DetailText(
+                                    "Type",
+                                    task.taskType.replace('_', ' ')
+                                )
+                                task.dueDate?.takeIf { it.isNotBlank() }?.let {
+                                    DetailText("Due", formatLeadDateTime(it))
                                 }
                             }
                         }

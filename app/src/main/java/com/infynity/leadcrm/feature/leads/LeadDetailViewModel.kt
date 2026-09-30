@@ -10,8 +10,10 @@ import com.infynity.leadcrm.core.network.models.LeadProduct
 import com.infynity.leadcrm.core.network.models.LeadProductCreateRequest
 import com.infynity.leadcrm.core.network.models.LeadProductUpdateRequest
 import com.infynity.leadcrm.core.network.models.Product
+import com.infynity.leadcrm.core.network.models.TaskResponse
 import com.infynity.leadcrm.core.voip.NativeSipManager
 import com.infynity.leadcrm.data.repository.LeadRepository
+import com.infynity.leadcrm.data.repository.TaskRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -34,6 +36,9 @@ data class LeadDetailUiState(
     val isLoadingProducts: Boolean = false,
     val isSavingProduct: Boolean = false,
     val productErrorMessage: String? = null,
+    val tasks: List<TaskResponse> = emptyList(),
+    val isLoadingTasks: Boolean = false,
+    val taskErrorMessage: String? = null,
     val isLoadingDocuments: Boolean = false,
     val isUploadingDocument: Boolean = false,
     val documentErrorMessage: String? = null,
@@ -47,6 +52,7 @@ data class LeadDetailUiState(
 
 class LeadDetailViewModel(
     private val repository: LeadRepository,
+    private val taskRepository: TaskRepository,
     private val leadId: Int,
     appContext: Context
 ) : ViewModel() {
@@ -102,6 +108,7 @@ class LeadDetailViewModel(
                     errorMessage = null
                 )
                 loadProducts()
+                loadTasks()
                 loadDocuments()
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(
@@ -114,6 +121,37 @@ class LeadDetailViewModel(
 
     fun refresh() {
         loadLead()
+    }
+
+    fun loadTasks() {
+        if (_uiState.value.isLoadingTasks) return
+
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(
+                isLoadingTasks = true,
+                taskErrorMessage = null
+            )
+
+            try {
+                val tasks = taskRepository.getTasks(leadId = leadId).items
+
+                _uiState.value = _uiState.value.copy(
+                    isLoadingTasks = false,
+                    tasks = tasks,
+                    taskErrorMessage = null
+                )
+            } catch (e: HttpException) {
+                _uiState.value = _uiState.value.copy(
+                    isLoadingTasks = false,
+                    taskErrorMessage = "Unable to load tasks: HTTP ${e.code()}"
+                )
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(
+                    isLoadingTasks = false,
+                    taskErrorMessage = e.message ?: "Unable to load tasks"
+                )
+            }
+        }
     }
 
     fun loadProducts() {

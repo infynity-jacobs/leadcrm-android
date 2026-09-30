@@ -9,8 +9,8 @@ import com.infynity.leadcrm.core.network.models.TaskUpdateRequest
 class TaskRepository(
     private val api: LeadCrmApi
 ) {
-    suspend fun getTasks(): TaskListResponse {
-        return api.getTasks()
+    suspend fun getTasks(leadId: Int? = null): TaskListResponse {
+        return api.getTasks(leadId = leadId)
     }
 
     suspend fun getTask(taskId: Int): TaskResponse {

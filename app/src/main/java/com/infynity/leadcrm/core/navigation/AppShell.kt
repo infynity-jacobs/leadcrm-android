@@ -79,7 +79,15 @@ fun AppShell(
         mutableStateOf(0)
     }
 
+    var leadsScrollToTopSignal by remember {
+        mutableStateOf(0)
+    }
+
     var selectedTaskId by remember {
+        mutableStateOf<Int?>(null)
+    }
+
+    var taskReturnToLeadId by remember {
         mutableStateOf<Int?>(null)
     }
 
@@ -202,6 +210,7 @@ fun AppShell(
             key = "lead-detail-$leadId",
             factory = LeadDetailViewModelFactory(
                 application.appContainer.leadRepository,
+                application.appContainer.taskRepository,
                 leadId,
                 LocalContext.current.applicationContext
             )
@@ -251,6 +260,7 @@ fun AppShell(
                             onBack = {
                                 creatingLead = false
                                 leadsViewModel.refresh()
+                                leadsScrollToTopSignal += 1
                             }
                         )
                     } else if (editingLeadId != null && leadEditViewModel != null) {
@@ -268,9 +278,15 @@ fun AppShell(
                             canDeleteLead = LeadPermissions.canDeleteLead(user.role),
                             onBack = {
                                 selectedLeadId = null
+                                leadsViewModel.refresh()
                             },
                             onEdit = {
                                 editingLeadId = selectedLeadId
+                            },
+                            onTaskSelected = { taskId ->
+                                taskReturnToLeadId = selectedLeadId
+                                selectedTaskId = taskId
+                                currentDestination = AppDestination.TASKS
                             }
                         )
                     } else {
@@ -283,7 +299,8 @@ fun AppShell(
                             onNewLead = {
                                 leadCreateSession += 1
                                 creatingLead = true
-                            }
+                            },
+                            scrollToTopSignal = leadsScrollToTopSignal
                         )
                     }
                 }
@@ -302,6 +319,11 @@ fun AppShell(
                             viewModel = taskDetailViewModel,
                             onBack = {
                                 selectedTaskId = null
+                                taskReturnToLeadId?.let { leadId ->
+                                    selectedLeadId = leadId
+                                    taskReturnToLeadId = null
+                                    currentDestination = AppDestination.LEADS
+                                }
                             },
                             onEdit = {
                                 editingTaskId = selectedTaskId
@@ -311,6 +333,7 @@ fun AppShell(
                         TasksScreen(
                             viewModel = tasksViewModel,
                             onTaskSelected = { taskId ->
+                                taskReturnToLeadId = null
                                 selectedTaskId = taskId
                             }
                         )
@@ -365,7 +388,6 @@ fun AppShell(
                 }
 
                 AppDestination.MORE -> {
-                    PlaceholderScreen(title = "More")
                 }
             }
         }

@@ -53,7 +53,9 @@ interface LeadCrmApi {
     suspend fun getCurrentUser(): UserResponse
 
     @GET("tasks")
-    suspend fun getTasks(): TaskListResponse
+    suspend fun getTasks(
+        @Query("lead_id") leadId: Int? = null
+    ): TaskListResponse
 
     @GET("task-statuses")
     suspend fun getTaskStatuses(): List<TaskStatusResponse>
