@@ -29,6 +29,10 @@ class TaskRepository(
         return api.updateTask(taskId, request)
     }
 
+    suspend fun deleteTask(taskId: Int) {
+        api.deleteTask(taskId)
+    }
+
     suspend fun getTaskStatuses(): List<TaskStatusResponse> {
         return api.getTaskStatuses()
     }

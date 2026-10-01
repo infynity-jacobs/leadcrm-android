@@ -6,7 +6,7 @@ import com.infynity.leadcrm.data.repository.TaskRepository
 
 class TaskCreateViewModelFactory(
     private val repository: TaskRepository,
-    private val leadId: Int
+    private val leadId: Int?
 ) : ViewModelProvider.Factory {
 
     @Suppress("UNCHECKED_CAST")

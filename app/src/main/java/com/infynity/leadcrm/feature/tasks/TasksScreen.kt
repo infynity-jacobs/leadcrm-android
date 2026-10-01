@@ -16,6 +16,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
@@ -47,7 +48,8 @@ private val taskDateFormatter = DateTimeFormatter.ofPattern(
 @Composable
 fun TasksScreen(
     viewModel: TasksViewModel,
-    onTaskSelected: (Int) -> Unit
+    onTaskSelected: (Int) -> Unit,
+    onNewTask: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val visibleTasks = viewModel.visibleTasks(uiState)
@@ -66,6 +68,13 @@ fun TasksScreen(
                     fontWeight = FontWeight.SemiBold,
                     modifier = Modifier.weight(1f)
                 )
+
+                IconButton(onClick = onNewTask) {
+                    Icon(
+                        imageVector = Icons.Default.Add,
+                        contentDescription = "New task"
+                    )
+                }
 
                 IconButton(onClick = viewModel::refresh) {
                     Icon(

@@ -77,6 +77,11 @@ interface LeadCrmApi {
         @Body request: TaskUpdateRequest
     ): TaskResponse
 
+    @DELETE("tasks/{taskId}")
+    suspend fun deleteTask(
+        @Path("taskId") taskId: Int
+    )
+
     @GET("calendar/events")
     suspend fun getCalendarEvents(
         @Query("start_at") startAt: String,

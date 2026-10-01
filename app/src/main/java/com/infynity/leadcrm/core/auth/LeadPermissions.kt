@@ -24,4 +24,8 @@ object LeadPermissions {
     fun canDeleteLead(role: String): Boolean {
         return role in leadDeleteRoles
     }
+
+    fun canDeleteTask(role: String): Boolean {
+        return role in leadDeleteRoles
+    }
 }

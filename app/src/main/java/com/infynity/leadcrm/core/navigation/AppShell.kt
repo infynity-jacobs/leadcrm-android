@@ -102,6 +102,10 @@ fun AppShell(
         mutableStateOf<Int?>(null)
     }
 
+    var creatingGlobalTask by remember {
+        mutableStateOf(false)
+    }
+
     var taskCreateSession by remember {
         mutableStateOf(0)
     }
@@ -169,14 +173,18 @@ fun AppShell(
     }
 
     val taskCreateViewModel: TaskCreateViewModel? =
-        creatingTaskForLeadId?.let { leadId ->
+        if (creatingGlobalTask || creatingTaskForLeadId != null) {
+            val leadId = creatingTaskForLeadId
+
             viewModel(
-                key = "task-create-$leadId-$taskCreateSession",
+                key = "task-create-${leadId ?: "global"}-$taskCreateSession",
                 factory = TaskCreateViewModelFactory(
                     application.appContainer.taskRepository,
                     leadId
                 )
             )
+        } else {
+            null
         }
 
     val calendarEventDetailViewModel: CalendarEventDetailViewModel? =
@@ -333,18 +341,25 @@ fun AppShell(
                 }
 
                 AppDestination.TASKS -> {
-                    if (creatingTaskForLeadId != null &&
+                    if ((creatingGlobalTask || creatingTaskForLeadId != null) &&
                         taskCreateViewModel != null
                     ) {
                         TaskCreateScreen(
                             viewModel = taskCreateViewModel,
                             onBack = {
                                 val leadId = creatingTaskForLeadId
+                                val isGlobalTask = creatingGlobalTask
+
                                 creatingTaskForLeadId = null
+                                creatingGlobalTask = false
+
                                 if (leadId != null) {
                                     selectedLeadId = leadId
                                     currentDestination = AppDestination.LEADS
+                                } else if (isGlobalTask) {
+                                    tasksViewModel.refresh()
                                 }
+
                                 leadDetailViewModel?.loadTasks()
                             }
                         )
@@ -359,6 +374,7 @@ fun AppShell(
                     } else if (selectedTaskId != null && taskDetailViewModel != null) {
                         TaskDetailScreen(
                             viewModel = taskDetailViewModel,
+                            canDelete = LeadPermissions.canDeleteTask(user.role),
                             onBack = {
                                 selectedTaskId = null
                                 taskReturnToLeadId?.let { leadId ->
@@ -369,6 +385,18 @@ fun AppShell(
                             },
                             onEdit = {
                                 editingTaskId = selectedTaskId
+                            },
+                            onDeleteSuccess = {
+                                val leadId = taskReturnToLeadId
+                                selectedTaskId = null
+                                tasksViewModel.refresh()
+
+                                if (leadId != null) {
+                                    selectedLeadId = leadId
+                                    taskReturnToLeadId = null
+                                    leadDetailViewModel?.loadTasks()
+                                    currentDestination = AppDestination.LEADS
+                                }
                             }
                         )
                     } else {
@@ -377,6 +405,10 @@ fun AppShell(
                             onTaskSelected = { taskId ->
                                 taskReturnToLeadId = null
                                 selectedTaskId = taskId
+                            },
+                            onNewTask = {
+                                creatingGlobalTask = true
+                                taskCreateSession += 1
                             }
                         )
                     }

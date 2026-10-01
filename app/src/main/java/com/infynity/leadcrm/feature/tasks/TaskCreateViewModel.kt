@@ -22,7 +22,7 @@ data class TaskCreateUiState(
 
 class TaskCreateViewModel(
     private val repository: TaskRepository,
-    private val leadId: Int
+    private val leadId: Int?
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(TaskCreateUiState())
@@ -76,7 +76,13 @@ class TaskCreateViewModel(
             )
 
             try {
-                val task = repository.createTask(request.copy(leadId = leadId))
+                val task = repository.createTask(
+                    if (leadId != null) {
+                        request.copy(leadId = leadId)
+                    } else {
+                        request
+                    }
+                )
                 _uiState.value = _uiState.value.copy(
                     isSaving = false,
                     createdTask = task,
