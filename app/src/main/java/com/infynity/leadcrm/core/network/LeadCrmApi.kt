@@ -50,8 +50,18 @@ interface LeadCrmApi {
         @Field("password") password: String
     ): LoginResponse
 
+    @POST("auth/change-password")
+    suspend fun changePassword(
+        @Body request: PasswordChangeRequest
+    ): Unit
+
     @GET("auth/me")
     suspend fun getCurrentUser(): UserResponse
+
+    @PUT("auth/me")
+    suspend fun updateCurrentUser(
+        @Body request: ProfileUpdateRequest
+    ): UserResponse
 
     @GET("tasks")
     suspend fun getTasks(

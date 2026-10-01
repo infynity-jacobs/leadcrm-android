@@ -51,7 +51,7 @@ fun LoginScreen(
             verticalArrangement = Arrangement.Center
         ) {
             Text(
-                text = "LeadCRM",
+                text = "Infynity CRM",
                 style = MaterialTheme.typography.headlineLarge
             )
 

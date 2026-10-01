@@ -4,7 +4,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.ListAlt
-import androidx.compose.material.icons.filled.MoreHoriz
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.People
 import androidx.compose.ui.graphics.vector.ImageVector
 
@@ -33,9 +33,9 @@ enum class AppDestination(
         label = "Calendar",
         icon = Icons.Filled.CalendarMonth
     ),
-    MORE(
-        route = "more",
-        label = "More",
-        icon = Icons.Filled.MoreHoriz
+    ME(
+        route = "me",
+        label = "Me",
+        icon = Icons.Filled.Person
     )
 }

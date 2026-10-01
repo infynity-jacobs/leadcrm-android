@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -28,6 +29,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
@@ -41,9 +43,20 @@ fun LeadsScreen(
     viewModel: LeadsViewModel,
     canCreateLead: Boolean,
     onLeadSelected: (Int) -> Unit,
-    onNewLead: () -> Unit
+    onNewLead: () -> Unit,
+    scrollToTopSignal: Int = 0
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val listState = rememberLazyListState()
+
+    LaunchedEffect(
+        scrollToTopSignal,
+        uiState.leads.firstOrNull()?.id
+    ) {
+        if (scrollToTopSignal > 0 && uiState.leads.isNotEmpty()) {
+            listState.animateScrollToItem(0)
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -186,6 +199,7 @@ fun LeadsScreen(
 
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
+                    state = listState,
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     items(

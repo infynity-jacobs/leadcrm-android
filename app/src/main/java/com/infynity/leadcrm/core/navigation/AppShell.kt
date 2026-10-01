@@ -56,6 +56,9 @@ import com.infynity.leadcrm.feature.calendar.CalendarEventEditViewModelFactory
 import com.infynity.leadcrm.feature.calendar.CalendarScreen
 import com.infynity.leadcrm.feature.calendar.CalendarViewModel
 import com.infynity.leadcrm.feature.calendar.CalendarViewModelFactory
+import com.infynity.leadcrm.feature.me.MeScreen
+import com.infynity.leadcrm.feature.me.ChangePasswordScreen
+import com.infynity.leadcrm.feature.me.EditProfileScreen
 
 @Composable
 fun AppShell(
@@ -64,6 +67,10 @@ fun AppShell(
 ) {
     var currentDestination by remember {
         mutableStateOf(AppDestination.HOME)
+    }
+
+    var currentUser by remember(user.id, user) {
+        mutableStateOf(user)
     }
 
     var selectedLeadId by remember {
@@ -124,6 +131,14 @@ fun AppShell(
 
     var calendarEventCreateSession by remember {
         mutableStateOf(0)
+    }
+
+    var changingPassword by remember {
+        mutableStateOf(false)
+    }
+
+    var editingProfile by remember {
+        mutableStateOf(false)
     }
 
     val application = LocalContext.current.applicationContext as LeadCrmApplication
@@ -276,9 +291,8 @@ fun AppShell(
             when (currentDestination) {
                 AppDestination.HOME -> {
                     HomeScreen(
-                        user = user,
-                        viewModel = homeViewModel,
-                        onLogout = onLogout
+                        user = currentUser,
+                        viewModel = homeViewModel
                     )
                 }
 
@@ -461,7 +475,38 @@ fun AppShell(
                     }
                 }
 
-                AppDestination.MORE -> {
+                AppDestination.ME -> {
+                    if (editingProfile) {
+                        EditProfileScreen(
+                            user = currentUser,
+                            authRepository = application.appContainer.authRepository,
+                            onBack = {
+                                editingProfile = false
+                            },
+                            onSaved = { updatedUser ->
+                                currentUser = updatedUser
+                                editingProfile = false
+                            }
+                        )
+                    } else if (changingPassword) {
+                        ChangePasswordScreen(
+                            authRepository = application.appContainer.authRepository,
+                            onBack = {
+                                changingPassword = false
+                            }
+                        )
+                    } else {
+                        MeScreen(
+                            user = currentUser,
+                            onEditProfile = {
+                                editingProfile = true
+                            },
+                            onChangePassword = {
+                                changingPassword = true
+                            },
+                            onLogout = onLogout
+                        )
+                    }
                 }
             }
         }

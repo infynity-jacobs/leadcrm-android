@@ -42,3 +42,20 @@ data class TeamMembershipResponse(
     @SerialName("team_name")
     val teamName: String? = null
 )
+
+
+@Serializable
+data class PasswordChangeRequest(
+    @SerialName("current_password")
+    val currentPassword: String,
+    @SerialName("new_password")
+    val newPassword: String
+)
+
+
+@Serializable
+data class ProfileUpdateRequest(
+    @SerialName("full_name")
+    val fullName: String,
+    val email: String
+)

@@ -43,8 +43,7 @@ import java.util.Locale
 @Composable
 fun HomeScreen(
     user: UserResponse,
-    viewModel: HomeViewModel,
-    onLogout: () -> Unit
+    viewModel: HomeViewModel
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
@@ -64,8 +63,7 @@ fun HomeScreen(
                 tasks = state.tasks,
                 calendarEvents = state.calendarEvents,
                 leads = state.leads,
-                onRefresh = viewModel::loadDashboard,
-                onLogout = onLogout
+                onRefresh = viewModel::loadDashboard
             )
         }
     }
@@ -124,8 +122,7 @@ private fun DashboardContent(
     tasks: List<TaskResponse>,
     calendarEvents: List<CalendarEventResponse>,
     leads: List<LeadResponse>,
-    onRefresh: () -> Unit,
-    onLogout: () -> Unit
+    onRefresh: () -> Unit
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -180,14 +177,6 @@ private fun DashboardContent(
             }
         }
 
-        item {
-            Button(
-                modifier = Modifier.fillMaxWidth(),
-                onClick = onLogout
-            ) {
-                Text("Logout")
-            }
-        }
     }
 }
 
