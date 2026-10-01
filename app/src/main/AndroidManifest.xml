@@ -10,6 +10,8 @@
         android:name=".LeadCrmApplication"
         android:allowBackup="true"
         android:label="Infynity CRM"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher"
         android:supportsRtl="true"
         android:theme="@style/Theme.LeadCRM">
 

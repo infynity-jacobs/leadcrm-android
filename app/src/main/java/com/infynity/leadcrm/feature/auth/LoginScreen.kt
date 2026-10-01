@@ -1,5 +1,7 @@
 package com.infynity.leadcrm.feature.auth
 
+import com.infynity.leadcrm.R
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -27,6 +29,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 
 @Composable
@@ -50,9 +54,13 @@ fun LoginScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            Text(
-                text = "Infynity CRM",
-                style = MaterialTheme.typography.headlineLarge
+            Image(
+                painter = painterResource(id = R.drawable.leadcrm_logo),
+                contentDescription = "Infynity CRM",
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(72.dp),
+                contentScale = ContentScale.Fit
             )
 
             Spacer(modifier = Modifier.height(8.dp))
