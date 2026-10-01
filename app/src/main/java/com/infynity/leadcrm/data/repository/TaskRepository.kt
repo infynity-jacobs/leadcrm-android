@@ -6,6 +6,8 @@ import com.infynity.leadcrm.core.network.models.TaskCreateRequest
 import com.infynity.leadcrm.core.network.models.TaskResponse
 import com.infynity.leadcrm.core.network.models.TaskStatusResponse
 import com.infynity.leadcrm.core.network.models.TaskUpdateRequest
+import com.infynity.leadcrm.core.network.models.TeamResponse
+import com.infynity.leadcrm.core.network.UserResponse
 
 class TaskRepository(
     private val api: LeadCrmApi
@@ -35,5 +37,16 @@ class TaskRepository(
 
     suspend fun getTaskStatuses(): List<TaskStatusResponse> {
         return api.getTaskStatuses()
+    }
+
+    suspend fun getTeams(): List<TeamResponse> {
+        return api.getTeams()
+    }
+
+    suspend fun getAssignees(teamId: Int): List<UserResponse> {
+        return api.getUsers(
+            role = "marketing_staff",
+            teamId = teamId
+        )
     }
 }

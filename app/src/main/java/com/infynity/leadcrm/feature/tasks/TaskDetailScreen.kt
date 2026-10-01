@@ -11,10 +11,15 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.People
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Refresh
@@ -40,6 +45,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.infynity.leadcrm.core.network.models.TaskResponse
+import com.infynity.leadcrm.feature.tasks.components.taskPriorityContainerColor
+import com.infynity.leadcrm.feature.tasks.components.taskPriorityContentColor
+import com.infynity.leadcrm.feature.tasks.components.taskStatusContainerColor
+import com.infynity.leadcrm.feature.tasks.components.taskStatusContentColor
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -212,16 +221,65 @@ private fun TaskDetailContent(
     ) {
         item {
             TaskSectionCard(title = "Task") {
-                TaskInlineDetailText("Title", task.title)
-                TaskInlineDetailText("Description", task.description)
-                TaskInlineDetailText("Status", task.statusName)
-                TaskInlineDetailText(
-                    "Priority",
-                    task.priority.replaceFirstChar { it.uppercase() }
+
+                Text(
+                    text = task.title,
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold
                 )
+
+                Spacer(
+                    modifier = Modifier.height(10.dp)
+                )
+
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+
+                    Surface(
+                        shape = RoundedCornerShape(20.dp),
+                        color = taskStatusContainerColor(task.statusName)
+                    ) {
+                        Text(
+                            text = task.statusName ?: "Unknown",
+                            modifier = Modifier.padding(
+                                horizontal = 10.dp,
+                                vertical = 5.dp
+                            ),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = taskStatusContentColor(task.statusName)
+                        )
+                    }
+
+                    Surface(
+                        shape = RoundedCornerShape(20.dp),
+                        color = taskPriorityContainerColor(task.priority)
+                    ) {
+                        Text(
+                            text = task.priority
+                                .replaceFirstChar { it.uppercase() },
+                            modifier = Modifier.padding(
+                                horizontal = 10.dp,
+                                vertical = 5.dp
+                            ),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = taskPriorityContentColor(task.priority)
+                        )
+                    }
+                }
+
+                Spacer(
+                    modifier = Modifier.height(12.dp)
+                )
+
                 TaskInlineDetailText(
                     "Task Type",
                     formatTaskType(task.taskType)
+                )
+
+                TaskInlineDetailText(
+                    "Description",
+                    task.description
                 )
             }
         }
@@ -358,10 +416,45 @@ private fun DetailDateText(
     value: String?
 ) {
     if (!value.isNullOrBlank()) {
-        DetailText(
-            label = label,
-            value = formatTaskDate(value)
-        )
+
+        val icon = if (label == "Completed") {
+            Icons.Default.CheckCircle
+        } else {
+            Icons.Default.CalendarMonth
+        }
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                modifier = Modifier.size(20.dp),
+                tint = MaterialTheme.colorScheme.primary
+            )
+
+            Spacer(
+                modifier = Modifier.width(10.dp)
+            )
+
+            Column {
+
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                Text(
+                    text = formatTaskDate(value),
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
+        }
     }
 }
 

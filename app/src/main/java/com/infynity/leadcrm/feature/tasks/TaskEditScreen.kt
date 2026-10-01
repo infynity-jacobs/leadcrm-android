@@ -45,6 +45,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.infynity.leadcrm.core.network.models.TaskUpdateRequest
+import com.infynity.leadcrm.feature.tasks.components.SearchableSelector
 import java.time.LocalDateTime
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -359,55 +360,37 @@ internal fun TaskEditForm(
         item {
             TaskEditSectionCard(title = "Assignment") {
 
-                Text(
-                    text = "Team",
-                    style = MaterialTheme.typography.labelMedium
+                SearchableSelector(
+                    label = "Team",
+                    selectedText = teams.find {
+                        it.id == teamId
+                    }?.name,
+                    items = teams,
+                    itemLabel = {
+                        it.name
+                    },
+                    onSelected = {
+                        onTeamChange(it.id)
+                    },
+                    enabled = !isSaving
                 )
-
-                Spacer(modifier = Modifier.height(6.dp))
-
-                TaskFilterRow {
-                    teams.forEach { team ->
-                        FilterChip(
-                            selected = teamId == team.id,
-                            onClick = {
-                                if (!isSaving) {
-                                    onTeamChange(team.id)
-                                }
-                            },
-                            label = {
-                                Text(team.name)
-                            },
-                            enabled = !isSaving
-                        )
-                    }
-                }
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                Text(
-                    text = "Assigned To",
-                    style = MaterialTheme.typography.labelMedium
+                SearchableSelector(
+                    label = "Assigned To",
+                    selectedText = users.find {
+                        it.id == assignedToId
+                    }?.fullName,
+                    items = users,
+                    itemLabel = {
+                        it.fullName
+                    },
+                    onSelected = {
+                        onAssignedToChange(it.id)
+                    },
+                    enabled = !isSaving
                 )
-
-                Spacer(modifier = Modifier.height(6.dp))
-
-                TaskFilterRow {
-                    users.forEach { user ->
-                        FilterChip(
-                            selected = assignedToId == user.id,
-                            onClick = {
-                                if (!isSaving) {
-                                    onAssignedToChange(user.id)
-                                }
-                            },
-                            label = {
-                                Text(user.fullName)
-                            },
-                            enabled = !isSaving
-                        )
-                    }
-                }
             }
         }
 
