@@ -63,6 +63,8 @@ fun TaskEditScreen(
     var statusId by remember { mutableStateOf<Int?>(null) }
     var priority by remember { mutableStateOf("") }
     var taskType by remember { mutableStateOf("") }
+    var teamId by remember { mutableStateOf<Int?>(null) }
+    var assignedToId by remember { mutableStateOf<Int?>(null) }
     var startDateTime by remember { mutableStateOf<LocalDateTime?>(null) }
     var dueDateTime by remember { mutableStateOf<LocalDateTime?>(null) }
 
@@ -75,6 +77,8 @@ fun TaskEditScreen(
             statusId = task.statusId
             priority = task.priority
             taskType = task.taskType
+            teamId = task.teamId
+            assignedToId = task.assignedToId
             startDateTime = parseTaskDateTime(task.startDate)
             dueDateTime = parseTaskDateTime(task.dueDate)
             initializedTaskId = task.id
@@ -151,6 +155,12 @@ fun TaskEditScreen(
                     onPriorityChange = { priority = it },
                     taskType = taskType,
                     onTaskTypeChange = { taskType = it },
+                    teamId = teamId,
+                    onTeamChange = { teamId = it },
+                    assignedToId = assignedToId,
+                    onAssignedToChange = { assignedToId = it },
+                    teams = uiState.teams,
+                    users = uiState.users,
                     startDateTime = startDateTime,
                     onStartDateTimeChange = { startDateTime = it },
                     dueDateTime = dueDateTime,
@@ -173,6 +183,8 @@ fun TaskEditScreen(
                                     statusId = statusId,
                                     priority = priority.ifBlank { null },
                                     taskType = taskType.ifBlank { null },
+                                    assignedToId = assignedToId,
+                                    teamId = teamId,
                                     startDate = start?.atZone(
                                         java.time.ZoneId.systemDefault()
                                     )?.format(
@@ -206,6 +218,12 @@ internal fun TaskEditForm(
     onPriorityChange: (String) -> Unit,
     taskType: String,
     onTaskTypeChange: (String) -> Unit,
+    teamId: Int? = null,
+    onTeamChange: (Int?) -> Unit = {},
+    assignedToId: Int? = null,
+    onAssignedToChange: (Int?) -> Unit = {},
+    teams: List<com.infynity.leadcrm.core.network.models.TeamResponse> = emptyList(),
+    users: List<com.infynity.leadcrm.core.network.UserResponse> = emptyList(),
     startDateTime: LocalDateTime?,
     onStartDateTimeChange: (LocalDateTime) -> Unit,
     dueDateTime: LocalDateTime?,
@@ -330,6 +348,61 @@ internal fun TaskEditForm(
                             },
                             label = {
                                 Text(formatTaskType(value))
+                            },
+                            enabled = !isSaving
+                        )
+                    }
+                }
+            }
+        }
+
+        item {
+            TaskEditSectionCard(title = "Assignment") {
+
+                Text(
+                    text = "Team",
+                    style = MaterialTheme.typography.labelMedium
+                )
+
+                Spacer(modifier = Modifier.height(6.dp))
+
+                TaskFilterRow {
+                    teams.forEach { team ->
+                        FilterChip(
+                            selected = teamId == team.id,
+                            onClick = {
+                                if (!isSaving) {
+                                    onTeamChange(team.id)
+                                }
+                            },
+                            label = {
+                                Text(team.name)
+                            },
+                            enabled = !isSaving
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Text(
+                    text = "Assigned To",
+                    style = MaterialTheme.typography.labelMedium
+                )
+
+                Spacer(modifier = Modifier.height(6.dp))
+
+                TaskFilterRow {
+                    users.forEach { user ->
+                        FilterChip(
+                            selected = assignedToId == user.id,
+                            onClick = {
+                                if (!isSaving) {
+                                    onAssignedToChange(user.id)
+                                }
+                            },
+                            label = {
+                                Text(user.fullName)
                             },
                             enabled = !isSaving
                         )

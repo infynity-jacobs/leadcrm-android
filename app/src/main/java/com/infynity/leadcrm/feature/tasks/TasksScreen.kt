@@ -46,6 +46,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.shape.RoundedCornerShape
 import com.infynity.leadcrm.core.network.models.TaskResponse
+import com.infynity.leadcrm.feature.tasks.components.TaskCard
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -394,85 +395,6 @@ private fun TaskFilterDialogSection(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             content = content
         )
-    }
-}
-
-@Composable
-private fun TaskCard(
-    task: TaskResponse,
-    onClick: () -> Unit
-) {
-    Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick),
-        shape = RoundedCornerShape(12.dp),
-        color = MaterialTheme.colorScheme.surface,
-        border = BorderStroke(
-            1.dp,
-            MaterialTheme.colorScheme.outlineVariant
-        )
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp)
-        ) {
-            Text(
-                text = task.title,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold
-            )
-
-            task.leadName?.takeIf { it.isNotBlank() }?.let {
-                Spacer(modifier = Modifier.height(3.dp))
-                Text(
-                    text = "Lead: $it",
-                    style = MaterialTheme.typography.bodyMedium
-                )
-            }
-
-            Spacer(modifier = Modifier.height(6.dp))
-
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Text(
-                    text = formatTaskType(task.taskType),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.primary
-                )
-
-                Text(
-                    text = task.priority.replaceFirstChar { it.uppercase() },
-                    style = MaterialTheme.typography.labelMedium
-                )
-            }
-
-            task.statusName?.takeIf { it.isNotBlank() }?.let {
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "Status: $it",
-                    style = MaterialTheme.typography.bodySmall
-                )
-            }
-
-            task.dueDate?.let {
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "Due: ${formatTaskDate(it)}",
-                    style = MaterialTheme.typography.bodySmall
-                )
-            }
-
-            task.assignedToName?.takeIf { it.isNotBlank() }?.let {
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = "Assigned: $it",
-                    style = MaterialTheme.typography.bodySmall
-                )
-            }
-        }
     }
 }
 

@@ -3,6 +3,8 @@ package com.infynity.leadcrm.feature.tasks
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.infynity.leadcrm.core.network.models.TaskResponse
+import com.infynity.leadcrm.core.network.models.TeamResponse
+import com.infynity.leadcrm.core.network.UserResponse
 import com.infynity.leadcrm.core.network.models.TaskStatusResponse
 import com.infynity.leadcrm.core.network.models.TaskUpdateRequest
 import com.infynity.leadcrm.data.repository.TaskRepository
@@ -16,6 +18,8 @@ data class TaskEditUiState(
     val isSaving: Boolean = false,
     val task: TaskResponse? = null,
     val statuses: List<TaskStatusResponse> = emptyList(),
+    val teams: List<TeamResponse> = emptyList(),
+    val users: List<UserResponse> = emptyList(),
     val errorMessage: String? = null,
     val saveSuccessful: Boolean = false
 )
@@ -54,10 +58,29 @@ class TaskEditViewModel(
                     _uiState.value.statuses
                 }
 
+                val teams = try {
+                    repository.getTeams()
+                        .filter { it.isActive }
+                } catch (_: Exception) {
+                    emptyList()
+                }
+
+                val users = try {
+                    if (task.teamId != null) {
+                        repository.getAssignees(task.teamId)
+                    } else {
+                        emptyList()
+                    }
+                } catch (_: Exception) {
+                    emptyList()
+                }
+
                 _uiState.value = TaskEditUiState(
                     isLoading = false,
                     task = task,
-                    statuses = statuses
+                    statuses = statuses,
+                    teams = teams,
+                    users = users
                 )
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(
