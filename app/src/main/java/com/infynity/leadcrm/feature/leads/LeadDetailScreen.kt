@@ -886,6 +886,13 @@ private fun LeadDetailContent(
             .padding(horizontal = 16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
+
+        item {
+            LeadHeader(
+                lead = lead
+            )
+        }
+
         item {
             LeadSectionCard(title = "Contact") {
                 DetailText(

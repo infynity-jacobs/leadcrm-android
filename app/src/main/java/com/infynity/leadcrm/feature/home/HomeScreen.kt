@@ -40,6 +40,7 @@ import androidx.compose.ui.unit.dp
 import com.infynity.leadcrm.core.network.UserResponse
 import com.infynity.leadcrm.core.network.models.CalendarEventResponse
 import com.infynity.leadcrm.core.network.models.LeadResponse
+import com.infynity.leadcrm.feature.leads.LeadAvatar
 import com.infynity.leadcrm.core.network.models.TaskResponse
 import java.time.OffsetDateTime
 import java.time.ZoneId
@@ -550,6 +551,11 @@ private fun LeadCard(
     lead: LeadResponse,
     onClick: () -> Unit
 ) {
+    val leadName = listOfNotNull(
+        lead.firstName,
+        lead.lastName?.takeIf { it.isNotBlank() }
+    ).joinToString(" ")
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -563,53 +569,50 @@ private fun LeadCard(
             MaterialTheme.colorScheme.outlineVariant
         )
     ) {
-        Column(
-            modifier = Modifier.padding(15.dp)
+        Row(
+            modifier = Modifier.padding(15.dp),
+            verticalAlignment = Alignment.Top
         ) {
-            Text(
-                text = listOfNotNull(
-                    lead.firstName,
-                    lead.lastName?.takeIf { it.isNotBlank() }
-                ).joinToString(" "),
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurface,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+            LeadAvatar(
+                name = leadName,
+                size = 42
             )
 
-            lead.company
-                ?.takeIf { it.isNotBlank() }
-                ?.let {
-                    Spacer(modifier = Modifier.height(3.dp))
+            Spacer(modifier = Modifier.width(12.dp))
 
-                    Text(
-                        text = it,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
+            Column(
+                modifier = Modifier.weight(1f)
+            ) {
+                Text(
+                    text = leadName.ifBlank { "Unnamed Lead" },
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
 
-            Spacer(modifier = Modifier.height(4.dp))
+                lead.phone
+                    ?.takeIf { it.isNotBlank() }
+                    ?.let {
+                        Spacer(modifier = Modifier.height(3.dp))
 
-            Text(
-                text = lead.status,
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.primary
-            )
+                        Text(
+                            text = it,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
 
-            lead.phone
-                ?.takeIf { it.isNotBlank() }
-                ?.let {
-                    Spacer(modifier = Modifier.height(2.dp))
+                Spacer(modifier = Modifier.height(4.dp))
 
-                    Text(
-                        text = it,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
+                Text(
+                    text = lead.status,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
         }
     }
 }

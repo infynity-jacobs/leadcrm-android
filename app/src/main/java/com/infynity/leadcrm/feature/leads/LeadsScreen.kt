@@ -305,6 +305,11 @@ private fun LeadCard(
     lead: LeadResponse,
     onClick: () -> Unit
 ) {
+    val leadName = listOfNotNull(
+        lead.firstName,
+        lead.lastName?.takeIf { it.isNotBlank() }
+    ).joinToString(" ")
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -318,83 +323,92 @@ private fun LeadCard(
             MaterialTheme.colorScheme.outlineVariant
         )
     ) {
-        Column(
-            modifier = Modifier.padding(15.dp)
+        Row(
+            modifier = Modifier.padding(15.dp),
+            verticalAlignment = Alignment.Top
         ) {
-            Text(
-                text = listOfNotNull(
-                    lead.firstName,
-                    lead.lastName?.takeIf { it.isNotBlank() }
-                ).joinToString(" "),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurface,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+            LeadAvatar(
+                name = leadName,
+                size = 44
             )
 
-            lead.company
-                ?.takeIf { it.isNotBlank() }
-                ?.let {
-                    Spacer(modifier = Modifier.height(3.dp))
+            Spacer(modifier = Modifier.width(12.dp))
 
-                    Text(
-                        text = it,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
+            Column(
+                modifier = Modifier.weight(1f)
+            ) {
+                Text(
+                    text = leadName.ifBlank { "Unnamed Lead" },
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
 
-            lead.phone
-                ?.takeIf { it.isNotBlank() }
-                ?.let {
-                    Spacer(modifier = Modifier.height(4.dp))
+                lead.company
+                    ?.takeIf { it.isNotBlank() }
+                    ?.let {
+                        Spacer(modifier = Modifier.height(3.dp))
 
-                    Text(
-                        text = it,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                }
+                        Text(
+                            text = it,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
 
-            lead.placeArea
-                ?.takeIf { it.isNotBlank() }
-                ?.let {
-                    Spacer(modifier = Modifier.height(2.dp))
+                lead.phone
+                    ?.takeIf { it.isNotBlank() }
+                    ?.let {
+                        Spacer(modifier = Modifier.height(4.dp))
 
-                    Text(
-                        text = it,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
+                        Text(
+                            text = it,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
 
-            Spacer(modifier = Modifier.height(9.dp))
+                lead.placeArea
+                    ?.takeIf { it.isNotBlank() }
+                    ?.let {
+                        Spacer(modifier = Modifier.height(2.dp))
 
-            Text(
-                text = lead.status
-                    .replace('_', ' ')
-                    .replaceFirstChar {
-                        if (it.isLowerCase()) {
-                            it.titlecase()
-                        } else {
-                            it.toString()
-                        }
-                    },
-                modifier = Modifier
-                    .padding(
-                        horizontal = 9.dp,
-                        vertical = 5.dp
-                    ),
-                style = MaterialTheme.typography.labelMedium,
-                fontWeight = FontWeight.Medium,
-                color = MaterialTheme.colorScheme.primary,
-                maxLines = 1
-            )
+                        Text(
+                            text = it,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+
+                Spacer(modifier = Modifier.height(9.dp))
+
+                Text(
+                    text = lead.status
+                        .replace('_', ' ')
+                        .replaceFirstChar {
+                            if (it.isLowerCase()) {
+                                it.titlecase()
+                            } else {
+                                it.toString()
+                            }
+                        },
+                    modifier = Modifier
+                        .padding(
+                            horizontal = 9.dp,
+                            vertical = 5.dp
+                        ),
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.primary,
+                    maxLines = 1
+                )
+            }
         }
     }
 }

@@ -24,6 +24,26 @@ import androidx.compose.ui.unit.sp
  */
 
 private val InfynityPrimary = Color(0xFF1B4FD1)
+
+// CRM semantic colours
+
+val LeadNew = Color(0xFF2563EB)
+val LeadContacted = Color(0xFF0891B2)
+val LeadFollowUp = Color(0xFFF59E0B)
+val LeadInterested = Color(0xFF16A34A)
+val LeadConverted = Color(0xFF7C3AED)
+val LeadLost = Color(0xFF64748B)
+
+val TaskPending = Color(0xFFF59E0B)
+val TaskCompleted = Color(0xFF16A34A)
+val TaskCancelled = Color(0xFFDC2626)
+
+val CalendarMeeting = Color(0xFF2563EB)
+val CalendarCall = Color(0xFF0891B2)
+val CalendarFollowUp = Color(0xFFF59E0B)
+val CalendarInstallation = Color(0xFF16A34A)
+val CalendarPayment = Color(0xFF7C3AED)
+
 private val InfynityPrimaryDark = Color(0xFF6F8FE8)
 
 private val InfynityAccent = Color(0xFF3B82F6)
