@@ -40,7 +40,7 @@ import androidx.compose.ui.unit.dp
 import com.infynity.leadcrm.core.network.UserResponse
 import com.infynity.leadcrm.core.network.models.CalendarEventResponse
 import com.infynity.leadcrm.core.network.models.LeadResponse
-import com.infynity.leadcrm.feature.leads.LeadAvatar
+import com.infynity.leadcrm.feature.leads.components.LeadCard
 import com.infynity.leadcrm.core.network.models.TaskResponse
 import java.time.OffsetDateTime
 import java.time.ZoneId
@@ -542,77 +542,6 @@ private fun CalendarEventCard(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-        }
-    }
-}
-
-@Composable
-private fun LeadCard(
-    lead: LeadResponse,
-    onClick: () -> Unit
-) {
-    val leadName = listOfNotNull(
-        lead.firstName,
-        lead.lastName?.takeIf { it.isNotBlank() }
-    ).joinToString(" ")
-
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick),
-        shape = CardShape,
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        ),
-        border = androidx.compose.foundation.BorderStroke(
-            1.dp,
-            MaterialTheme.colorScheme.outlineVariant
-        )
-    ) {
-        Row(
-            modifier = Modifier.padding(15.dp),
-            verticalAlignment = Alignment.Top
-        ) {
-            LeadAvatar(
-                name = leadName,
-                size = 42
-            )
-
-            Spacer(modifier = Modifier.width(12.dp))
-
-            Column(
-                modifier = Modifier.weight(1f)
-            ) {
-                Text(
-                    text = leadName.ifBlank { "Unnamed Lead" },
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-
-                lead.phone
-                    ?.takeIf { it.isNotBlank() }
-                    ?.let {
-                        Spacer(modifier = Modifier.height(3.dp))
-
-                        Text(
-                            text = it,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
-
-                Spacer(modifier = Modifier.height(4.dp))
-
-                Text(
-                    text = lead.status,
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.primary
-                )
-            }
         }
     }
 }

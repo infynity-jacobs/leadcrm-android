@@ -39,6 +39,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -66,6 +67,23 @@ fun LeadsScreen(
     ) {
         if (scrollToTopSignal > 0 && uiState.leads.isNotEmpty()) {
             listState.animateScrollToItem(0)
+        }
+    }
+
+    LaunchedEffect(
+        listState,
+        uiState.leads.size
+    ) {
+        snapshotFlow {
+            listState.layoutInfo.visibleItemsInfo
+                .lastOrNull()
+                ?.index
+        }.collect { index ->
+            if (index != null &&
+                index >= uiState.leads.size - 5
+            ) {
+                viewModel.loadMoreLeads()
+            }
         }
     }
 

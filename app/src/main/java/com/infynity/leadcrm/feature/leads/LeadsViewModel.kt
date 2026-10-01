@@ -13,8 +13,11 @@ import kotlinx.coroutines.launch
 
 data class LeadsUiState(
     val isLoading: Boolean = false,
+    val isLoadingMore: Boolean = false,
     val leads: List<LeadResponse> = emptyList(),
     val total: Int = 0,
+    val currentPage: Int = 1,
+    val hasMore: Boolean = true,
     val searchQuery: String = "",
     val selectedStatus: String? = null,
     val errorMessage: String? = null
@@ -43,6 +46,8 @@ class LeadsViewModel(
 
             try {
                 val response = repository.getLeads(
+                    page = 1,
+                    pageSize = 25,
                     search = current.searchQuery.takeIf { it.isNotBlank() },
                     status = current.selectedStatus
                 )
@@ -51,6 +56,8 @@ class LeadsViewModel(
                     isLoading = false,
                     leads = response.items,
                     total = response.total,
+                    currentPage = 1,
+                    hasMore = response.items.size < response.total,
                     errorMessage = null
                 )
             } catch (e: Exception) {
@@ -61,6 +68,51 @@ class LeadsViewModel(
             }
         }
     }
+
+    fun loadMoreLeads() {
+        val current = _uiState.value
+
+        if (current.isLoading ||
+            current.isLoadingMore ||
+            !current.hasMore
+        ) {
+            return
+        }
+
+        viewModelScope.launch {
+            _uiState.value = current.copy(
+                isLoadingMore = true
+            )
+
+            try {
+                val nextPage = current.currentPage + 1
+
+                val response = repository.getLeads(
+                    page = nextPage,
+                    pageSize = 25,
+                    search = current.searchQuery
+                        .takeIf { it.isNotBlank() },
+                    status = current.selectedStatus
+                )
+
+                _uiState.value = _uiState.value.copy(
+                    isLoadingMore = false,
+                    leads = current.leads + response.items,
+                    currentPage = nextPage,
+                    hasMore = (current.leads.size + response.items.size)
+                        < response.total
+                )
+
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(
+                    isLoadingMore = false,
+                    errorMessage = e.message
+                        ?: "Unable to load more leads"
+                )
+            }
+        }
+    }
+
 
     fun updateSearchQuery(query: String) {
         _uiState.value = _uiState.value.copy(
