@@ -6,14 +6,22 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -28,6 +36,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Call
@@ -46,6 +55,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -72,6 +82,7 @@ import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
+import com.infynity.leadcrm.R
 import com.infynity.leadcrm.core.network.models.FollowUpResponse
 import com.infynity.leadcrm.core.voip.NativeSipManager
 import com.infynity.leadcrm.core.network.models.LeadDetailResponse
@@ -470,7 +481,32 @@ private fun LeadDocumentsContent(
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         item {
-            LeadSectionCard(title = "Documents") {
+            LeadSectionCard(
+                title = "Documents",
+                trailingAction = if (documents.isNotEmpty()) {
+                    {
+                        OutlinedButton(
+                            onClick = onDownloadAll,
+                            enabled = !isDownloadingAllDocuments && !isUploading,
+                            contentPadding = PaddingValues(
+                                horizontal = 12.dp,
+                                vertical = 0.dp
+                            ),
+                            modifier = Modifier.height(36.dp)
+                        ) {
+                            Text(
+                                if (isDownloadingAllDocuments) {
+                                    "Preparing..."
+                                } else {
+                                    "Download All"
+                                }
+                            )
+                        }
+                    }
+                } else {
+                    null
+                }
+            ) {
                 when {
                     isLoading -> {
                         Row(
@@ -503,21 +539,6 @@ private fun LeadDocumentsContent(
 
                     else -> {
                         if (documents.isNotEmpty()) {
-                            Button(
-                                onClick = onDownloadAll,
-                                enabled = !isDownloadingAllDocuments && !isUploading
-                            ) {
-                                Text(
-                                    if (isDownloadingAllDocuments) {
-                                        "Preparing PDF..."
-                                    } else {
-                                        "Download All"
-                                    }
-                                )
-                            }
-
-                            Spacer(modifier = Modifier.height(4.dp))
-
                             Text(
                                 text = "Uploaded Documents",
                                 style = MaterialTheme.typography.titleSmall,
@@ -568,30 +589,51 @@ private fun DocumentRow(
     isViewing: Boolean,
     onView: () -> Unit
 ) {
-    Column(
+    Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 6.dp)
-    ) {
-        Text(
-            text = document.originalFilename,
-            style = MaterialTheme.typography.bodyLarge,
-            fontWeight = FontWeight.Medium
+            .padding(vertical = 4.dp),
+        shape = RoundedCornerShape(12.dp),
+        colors = androidx.compose.material3.CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        border = BorderStroke(
+            1.dp,
+            MaterialTheme.colorScheme.outlineVariant
         )
-
-        DetailText("Type", document.documentType)
-        DetailText("Format", document.contentType)
-        document.size?.let {
-            DetailText("Size", formatDocumentSize(it))
-        }
-
-        Spacer(modifier = Modifier.height(6.dp))
-
-        Button(
-            onClick = onView,
-            enabled = !isViewing
+    ) {
+        Column(
+            modifier = Modifier.padding(12.dp)
         ) {
-            Text(if (isViewing) "Opening..." else "View")
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = document.originalFilename,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.weight(1f)
+                )
+
+                OutlinedButton(
+                    onClick = onView,
+                    enabled = !isViewing,
+                    contentPadding = PaddingValues(
+                        horizontal = 12.dp,
+                        vertical = 0.dp
+                    ),
+                    modifier = Modifier.height(32.dp)
+                ) {
+                    Text(if (isViewing) "Opening..." else "View")
+                }
+            }
+
+            DetailText("Type", document.documentType)
+            DetailText("Format", document.contentType)
+            document.size?.let {
+                DetailText("Size", formatDocumentSize(it))
+            }
         }
     }
 }
@@ -603,51 +645,75 @@ private fun DocumentRequirementRow(
     isUploading: Boolean,
     onUpload: () -> Unit
 ) {
-    Column(
+    Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 6.dp)
+            .padding(vertical = 4.dp),
+        shape = RoundedCornerShape(12.dp),
+        colors = androidx.compose.material3.CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        border = BorderStroke(
+            1.dp,
+            MaterialTheme.colorScheme.outlineVariant
+        )
     ) {
-        Text(
-            text = requirement.displayName,
-            style = MaterialTheme.typography.bodyLarge,
-            fontWeight = FontWeight.Medium
-        )
-
-        Text(
-            text = buildString {
-                append(if (requirement.required) "Required" else "Optional")
-                append(" • ")
-                append("$uploadedCount uploaded")
-                if (requirement.multipleAllowed) {
-                    append(" • Multiple allowed")
-                }
-            },
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-
-        Spacer(modifier = Modifier.height(6.dp))
-
-        if (isUploading) {
-            CircularProgressIndicator(
-                modifier = Modifier
-                    .width(18.dp)
-                    .height(18.dp),
-                strokeWidth = 2.dp
-            )
-        } else if (requirement.multipleAllowed || uploadedCount == 0) {
-            Button(
-                onClick = onUpload
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(
+                modifier = Modifier.weight(1f)
             ) {
-                Text(if (uploadedCount == 0) "Upload" else "Upload Another")
+                Text(
+                    text = requirement.displayName,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold
+                )
+
+                Text(
+                    text = buildString {
+                        append(if (requirement.required) "Required" else "Optional")
+                        append(" • ")
+                        append("$uploadedCount uploaded")
+                        if (requirement.multipleAllowed) {
+                            append(" • Multiple allowed")
+                        }
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
-        } else {
-            Text(
-                text = "Upload limit reached",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+
+            if (isUploading) {
+                CircularProgressIndicator(
+                    modifier = Modifier
+                        .width(18.dp)
+                        .height(18.dp),
+                    strokeWidth = 2.dp
+                )
+            } else if (requirement.multipleAllowed || uploadedCount == 0) {
+                OutlinedButton(
+                    onClick = onUpload,
+                    contentPadding = PaddingValues(
+                        horizontal = 12.dp,
+                        vertical = 0.dp
+                    ),
+                    modifier = Modifier.height(32.dp)
+                ) {
+                    Text(
+                        if (uploadedCount == 0) "Upload" else "Upload Another"
+                    )
+                }
+            } else {
+                Text(
+                    text = "Upload limit reached",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         }
     }
 }
@@ -829,12 +895,6 @@ private fun LeadDetailContent(
                         lead.lastName
                     ).joinToString(" ")
                 )
-                DetailText("Phone", lead.phone)
-                DetailText("Phone 2", lead.phone2)
-                DetailText("Email", lead.email)
-
-                Spacer(modifier = Modifier.height(12.dp))
-
                 LeadContactActions(
                     phone = lead.phone,
                     phone2 = lead.phone2,
@@ -855,13 +915,37 @@ private fun LeadDetailContent(
 
         item {
             LeadSectionCard(title = "Lead") {
-                DetailText("Status", lead.status.replace('_', ' '))
-                DetailText("Company", lead.company)
-                DetailText("Source", lead.source)
-                DetailText("Place / Area", lead.placeArea)
-                DetailText("Referred By", lead.referredBy)
-                DetailText("Assigned To", lead.assignedToName)
-                DetailText("Team", lead.teamName)
+                if (lead.status.isNotBlank()) {
+                    Text(
+                        text = "Status",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    Surface(
+                        modifier = Modifier.padding(top = 4.dp, bottom = 6.dp),
+                        shape = RoundedCornerShape(20.dp),
+                        color = MaterialTheme.colorScheme.primaryContainer
+                    ) {
+                        Text(
+                            text = lead.status.replace('_', ' '),
+                            modifier = Modifier.padding(
+                                horizontal = 12.dp,
+                                vertical = 5.dp
+                            ),
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    }
+                }
+
+                InlineDetailText("Company", lead.company)
+                InlineDetailText("Source", lead.source)
+                InlineDetailText("Place / Area", lead.placeArea)
+                InlineDetailText("Referred By", lead.referredBy)
+                InlineDetailText("Assigned To", lead.assignedToName)
+                InlineDetailText("Team", lead.teamName)
             }
         }
 
@@ -870,29 +954,135 @@ private fun LeadDetailContent(
         ) {
             item {
                 LeadSectionCard(title = "Customer Information") {
-                    DetailText(
-                        "Infynity Customer",
-                        if (lead.infynityCustomer) "Yes" else "No"
+                    val context = LocalContext.current
+
+                    Text(
+                        text = "Infynity Customer",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    DetailText(
+
+                    Surface(
+                        modifier = Modifier.padding(top = 4.dp, bottom = 6.dp),
+                        shape = RoundedCornerShape(20.dp),
+                        color = MaterialTheme.colorScheme.primaryContainer
+                    ) {
+                        Text(
+                            text = if (lead.infynityCustomer) "Yes" else "No",
+                            modifier = Modifier.padding(
+                                horizontal = 12.dp,
+                                vertical = 5.dp
+                            ),
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    }
+
+                    InlineDetailText(
                         "Customer ID",
                         lead.infynityCustomerId
                     )
-                    DetailText(
+                    InlineDetailText(
                         "KSEB Consumer Number",
                         lead.ksebConsumerNumber
                     )
+
+                    val customerLatitude = lead.customerLatitude
+                    val customerLongitude = lead.customerLongitude
+
+                    if (lead.atCustomerLocation ||
+                        customerLatitude != null ||
+                        customerLongitude != null
+                    ) {
+                        Text(
+                            text = "Customer Location",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(top = 6.dp)
+                        )
+
+                        val hasCoordinates =
+                            customerLatitude != null && customerLongitude != null
+
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 4.dp)
+                                .then(
+                                    if (hasCoordinates) {
+                                        Modifier.clickable {
+                                            val lat = customerLatitude
+                                            val lon = customerLongitude
+                                            val geoUri = Uri.parse(
+                                                "geo:$lat,$lon?q=$lat,$lon(Customer Location)"
+                                            )
+                                            val intent = Intent(
+                                                Intent.ACTION_VIEW,
+                                                geoUri
+                                            )
+                                            runCatching {
+                                                context.startActivity(intent)
+                                            }
+                                        }
+                                    } else {
+                                        Modifier
+                                    }
+                                )
+                                .padding(bottom = 6.dp)
+                        ) {
+                            Surface(
+                                shape = RoundedCornerShape(20.dp),
+                                color = MaterialTheme.colorScheme.primaryContainer
+                            ) {
+                                Text(
+                                    text = "Customer Location • Tap to open in map",
+                                    modifier = Modifier.padding(
+                                        horizontal = 12.dp,
+                                        vertical = 5.dp
+                                    ),
+                                    style = MaterialTheme.typography.labelLarge,
+                                    fontWeight = FontWeight.Medium,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                            }
+
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(top = 2.dp),
+                                horizontalArrangement = Arrangement.spacedBy(16.dp)
+                            ) {
+                                Text(
+                                    text = "Lat. ${customerLatitude?.toString().orEmpty()}",
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
+                                Text(
+                                    text = "Long. ${customerLongitude?.toString().orEmpty()}",
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
+                            }
+
+                            Text(
+                                text = "Accuracy ${
+                                    lead.customerLocationAccuracy?.let {
+                                        "%.2f metres".format(it)
+                                    }.orEmpty()
+                                }",
+                                style = MaterialTheme.typography.bodyMedium,
+                                modifier = Modifier.padding(top = 2.dp)
+                            )
+                        }
+                    }
                 }
             }
         }
 
         if (products.isNotEmpty() || availableProducts.isNotEmpty() || isLoadingProducts) {
             item {
-                LeadSectionCard(title = "Products") {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.End
-                    ) {
+                LeadSectionCard(
+                    title = "Products",
+                    trailingAction = {
                         OutlinedButton(
                             onClick = {
                                 editingProduct = null
@@ -902,14 +1092,17 @@ private fun LeadDetailContent(
                                 }
                                 productEditorOpen = true
                             },
-                            enabled = !isSavingProduct
+                            enabled = !isSavingProduct,
+                            contentPadding = PaddingValues(
+                                horizontal = 12.dp,
+                                vertical = 0.dp
+                            ),
+                            modifier = Modifier.height(36.dp)
                         ) {
                             Text("+ Add Product")
                         }
                     }
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
+                ) {
                     if (isLoadingProducts) {
                         CircularProgressIndicator(
                             modifier = Modifier.padding(vertical = 8.dp)
@@ -932,10 +1125,16 @@ private fun LeadDetailContent(
                         )
                     } else {
                         products.forEach { product ->
-                            Card(
+                            Surface(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(vertical = 4.dp)
+                                    .padding(vertical = 4.dp),
+                                shape = RoundedCornerShape(12.dp),
+                                color = MaterialTheme.colorScheme.surface,
+                                border = BorderStroke(
+                                    1.dp,
+                                    MaterialTheme.colorScheme.outlineVariant
+                                )
                             ) {
                                 Column(
                                     modifier = Modifier.padding(12.dp)
@@ -951,60 +1150,80 @@ private fun LeadDetailContent(
                                         Text(
                                             text = "SKU: $it",
                                             style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.padding(top = 2.dp)
                                         )
                                     }
 
-                                    Text(
-                                        text = "Quantity: ${product.quantity}",
-                                        style = MaterialTheme.typography.bodyMedium
-                                    )
-
-                                    Text(
-                                        text = "Interest: ${
-                                            product.interestStatus.replaceFirstChar {
-                                                it.uppercase()
-                                            }
-                                        }",
-                                        style = MaterialTheme.typography.bodyMedium
-                                    )
-
-                                    product.quotedPrice?.let {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(top = 8.dp),
+                                        horizontalArrangement = Arrangement.spacedBy(20.dp)
+                                    ) {
                                         Text(
-                                            text = "Quoted Price: ${
-                                                formatLeadProductMoney(product.currency, it)
+                                            text = "Quantity: ${product.quantity}",
+                                            style = MaterialTheme.typography.bodyMedium
+                                        )
+
+                                        Text(
+                                            text = "Interest: ${
+                                                product.interestStatus.replaceFirstChar {
+                                                    it.uppercase()
+                                                }
                                             }",
                                             style = MaterialTheme.typography.bodyMedium
                                         )
                                     }
 
+                                    product.quotedPrice?.let {
+                                        InlineDetailText(
+                                            label = "Quoted Price",
+                                            value = formatLeadProductMoney(product.currency, it)
+                                        )
+                                    }
+
                                     product.notes?.takeIf { it.isNotBlank() }?.let {
-                                        Text(
-                                            text = "Notes: $it",
-                                            style = MaterialTheme.typography.bodyMedium
+                                        InlineDetailText(
+                                            label = "Notes",
+                                            value = it
                                         )
                                     }
 
                                     Row(
-                                        modifier = Modifier.fillMaxWidth(),
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(top = 6.dp),
                                         horizontalArrangement = Arrangement.End
                                     ) {
-                                        TextButton(
+                                        OutlinedButton(
                                             onClick = {
                                                 editingProduct = product
                                                 onClearProductError()
                                                 productEditorOpen = true
                                             },
-                                            enabled = !isSavingProduct
+                                            enabled = !isSavingProduct,
+                                            contentPadding = PaddingValues(
+                                                horizontal = 12.dp,
+                                                vertical = 0.dp
+                                            ),
+                                            modifier = Modifier.height(34.dp)
                                         ) {
                                             Text("Edit")
                                         }
 
-                                        TextButton(
+                                        Spacer(modifier = Modifier.width(8.dp))
+
+                                        OutlinedButton(
                                             onClick = {
                                                 removeProduct = product
                                             },
-                                            enabled = !isSavingProduct
+                                            enabled = !isSavingProduct,
+                                            contentPadding = PaddingValues(
+                                                horizontal = 12.dp,
+                                                vertical = 0.dp
+                                            ),
+                                            modifier = Modifier.height(34.dp)
                                         ) {
                                             Text("Remove")
                                         }
@@ -1018,11 +1237,21 @@ private fun LeadDetailContent(
         }
 
         item {
-            LeadSectionCard(title = "Tasks") {
-                TextButton(onClick = onCreateTask) {
-                    Text("New Task")
+            LeadSectionCard(
+                title = "Tasks",
+                trailingAction = {
+                    OutlinedButton(
+                        onClick = onCreateTask,
+                        contentPadding = PaddingValues(
+                            horizontal = 12.dp,
+                            vertical = 0.dp
+                        ),
+                        modifier = Modifier.height(36.dp)
+                    ) {
+                        Text("+ New Task")
+                    }
                 }
-
+            ) {
                 if (isLoadingTasks) {
                     CircularProgressIndicator(
                         modifier = Modifier.padding(vertical = 8.dp)
@@ -1049,11 +1278,17 @@ private fun LeadDetailContent(
                     )
                 } else {
                     tasks.forEach { task ->
-                        Card(
+                        Surface(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(vertical = 4.dp)
-                                .clickable { onTaskSelected(task.id) }
+                                .clickable { onTaskSelected(task.id) },
+                            shape = RoundedCornerShape(12.dp),
+                            color = MaterialTheme.colorScheme.surface,
+                            border = BorderStroke(
+                                1.dp,
+                                MaterialTheme.colorScheme.outlineVariant
+                            )
                         ) {
                             Column(
                                 modifier = Modifier.padding(12.dp)
@@ -1065,16 +1300,16 @@ private fun LeadDetailContent(
                                 )
 
                                 task.statusName?.takeIf { it.isNotBlank() }?.let {
-                                    DetailText("Status", it)
+                                    InlineDetailText("Status", it)
                                 }
 
-                                DetailText("Priority", task.priority)
-                                DetailText(
+                                InlineDetailText("Priority", task.priority)
+                                InlineDetailText(
                                     "Type",
                                     task.taskType.replace('_', ' ')
                                 )
                                 task.dueDate?.takeIf { it.isNotBlank() }?.let {
-                                    DetailText("Due", formatLeadDateTime(it))
+                                    InlineDetailText("Due", formatLeadDateTime(it))
                                 }
                             }
                         }
@@ -1273,8 +1508,15 @@ private fun LeadProductEditorDialog(
                     productPickerOpen = false
                 }
             },
+            shape = RoundedCornerShape(20.dp),
+            containerColor = MaterialTheme.colorScheme.surface,
+            tonalElevation = 0.dp,
             title = {
-                Text("Select Product")
+                Text(
+                    "Select Product",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.SemiBold
+                )
             },
             text = {
                 Column {
@@ -1309,27 +1551,39 @@ private fun LeadProductEditorDialog(
                                 items = filteredProducts,
                                 key = { it.id }
                             ) { product ->
-                                TextButton(
-                                    onClick = {
-                                        selectedProductId = product.id
-                                        productPickerOpen = false
-                                    },
-                                    enabled = !isSaving,
-                                    modifier = Modifier.fillMaxWidth()
+                                Surface(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 3.dp)
+                                        .clickable(enabled = !isSaving) {
+                                            selectedProductId = product.id
+                                            productPickerOpen = false
+                                        },
+                                    shape = RoundedCornerShape(12.dp),
+                                    color = MaterialTheme.colorScheme.surface,
+                                    border = BorderStroke(
+                                        1.dp,
+                                        MaterialTheme.colorScheme.outlineVariant
+                                    )
                                 ) {
                                     Column(
-                                        modifier = Modifier.fillMaxWidth()
+                                        modifier = Modifier.padding(
+                                            horizontal = 14.dp,
+                                            vertical = 11.dp
+                                        )
                                     ) {
                                         Text(
                                             text = product.name,
+                                            style = MaterialTheme.typography.bodyLarge,
                                             fontWeight = FontWeight.SemiBold
                                         )
                                         product.sku?.takeIf {
                                             it.isNotBlank()
                                         }?.let {
                                             Text(
-                                                text = it,
-                                                style = MaterialTheme.typography.bodySmall
+                                                text = "SKU: $it",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
                                             )
                                         }
                                     }
@@ -1359,10 +1613,15 @@ private fun LeadProductEditorDialog(
                 onDismiss()
             }
         },
+        shape = RoundedCornerShape(20.dp),
+        containerColor = MaterialTheme.colorScheme.surface,
+        tonalElevation = 0.dp,
         title = {
             Text(
                 if (editingProduct == null) "Add Product"
-                else "Edit Product"
+                else "Edit Product",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.SemiBold
             )
         },
         text = {
@@ -1415,49 +1674,100 @@ private fun LeadProductEditorDialog(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                Box {
-                    OutlinedButton(
-                        onClick = {
+                OutlinedTextField(
+                    value = interestStatus.replaceFirstChar { it.uppercase() },
+                    onValueChange = {},
+                    label = { Text("Interest") },
+                    readOnly = true,
+                    enabled = !isSaving,
+                    singleLine = true,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(enabled = !isSaving) {
                             interestMenuExpanded = true
                         },
-                        enabled = !isSaving,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
+                    trailingIcon = {
                         Text(
-                            "Interest: ${
-                                interestStatus.replaceFirstChar {
-                                    it.uppercase()
-                                }
-                            }"
+                            text = "▼",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
+                )
 
-                    DropdownMenu(
-                        expanded = interestMenuExpanded,
+                if (interestMenuExpanded) {
+                    AlertDialog(
                         onDismissRequest = {
                             interestMenuExpanded = false
-                        }
-                    ) {
-                        listOf(
-                            "interested",
-                            "quoted",
-                            "not_interested"
-                        ).forEach { status ->
-                            DropdownMenuItem(
-                                text = {
-                                    Text(
-                                        status.replaceFirstChar {
-                                            it.uppercase()
+                        },
+                        shape = RoundedCornerShape(20.dp),
+                        containerColor = MaterialTheme.colorScheme.surface,
+                        tonalElevation = 0.dp,
+                        title = {
+                            Text(
+                                "Interest",
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        },
+                        text = {
+                            Column {
+                                listOf(
+                                    "interested",
+                                    "quoted",
+                                    "not_interested"
+                                ).forEach { status ->
+                                    val selected = interestStatus == status
+
+                                    Surface(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(vertical = 3.dp)
+                                            .clickable {
+                                                interestStatus = status
+                                                interestMenuExpanded = false
+                                            },
+                                        shape = RoundedCornerShape(10.dp),
+                                        color = if (selected) {
+                                            MaterialTheme.colorScheme.primaryContainer
+                                        } else {
+                                            MaterialTheme.colorScheme.surface
                                         }
-                                    )
-                                },
+                                    ) {
+                                        Text(
+                                            text = status.replaceFirstChar {
+                                                it.uppercase()
+                                            },
+                                            modifier = Modifier.padding(
+                                                horizontal = 14.dp,
+                                                vertical = 12.dp
+                                            ),
+                                            style = MaterialTheme.typography.bodyLarge,
+                                            fontWeight = if (selected) {
+                                                FontWeight.SemiBold
+                                            } else {
+                                                FontWeight.Normal
+                                            },
+                                            color = if (selected) {
+                                                MaterialTheme.colorScheme.onPrimaryContainer
+                                            } else {
+                                                MaterialTheme.colorScheme.onSurface
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+                        },
+                        confirmButton = {
+                            TextButton(
                                 onClick = {
-                                    interestStatus = status
                                     interestMenuExpanded = false
                                 }
-                            )
+                            ) {
+                                Text("Cancel")
+                            }
                         }
-                    }
+                    )
                 }
 
                 Spacer(modifier = Modifier.height(12.dp))
@@ -1616,170 +1926,236 @@ private fun LeadContactActions(
     val context = LocalContext.current
 
     Column(
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         phone?.takeIf { it.isNotBlank() }?.let { number ->
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            Column(
+                verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                Button(
-                    onClick = onNativeCall,
-                    enabled = !isNativeCalling && !isCalling,
-                    modifier = Modifier.weight(1f)
-                ) {
-                    if (isNativeCalling) {
-                        CircularProgressIndicator(
-                            modifier = Modifier
-                                .width(18.dp)
-                                .height(18.dp),
-                            strokeWidth = 2.dp
-                        )
-                    } else {
-                        Icon(
-                            imageVector = Icons.Default.Call,
-                            contentDescription = "Call"
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(if (isNativeCalling) "Calling..." else "Call")
-                }
-
-                Button(
-                    onClick = onVoipCall,
-                    enabled = !isCalling && !isNativeCalling,
-                    modifier = Modifier.weight(1f)
-                ) {
-                    if (isCalling) {
-                        CircularProgressIndicator(
-                            modifier = Modifier
-                                .width(18.dp)
-                                .height(18.dp),
-                            strokeWidth = 2.dp
-                        )
-                    } else {
-                        Icon(
-                            imageVector = Icons.Default.Call,
-                            contentDescription = "PBX Call"
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(if (isCalling) "Calling..." else "PBX Call")
-                }
-            }
-
-            Button(
-                onClick = {
-                    val intent = Intent(
-                        Intent.ACTION_VIEW,
-                        Uri.parse("https://wa.me/${formatWhatsAppNumber(number)}")
-                    )
-                    context.startActivity(intent)
-                },
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Message,
-                    contentDescription = "WhatsApp"
-                )
-                Spacer(modifier = Modifier.width(6.dp))
-                Text("WhatsApp")
-            }
-
-            callMessage?.let { message ->
                 Text(
-                    text = message,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = if (isCalling) {
-                        MaterialTheme.colorScheme.onSurfaceVariant
-                    } else {
-                        MaterialTheme.colorScheme.primary
-                    }
+                    text = "Phone",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-            }
 
-            nativeCallMessage?.let { message ->
-                Text(
-                    text = message,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = if (isNativeCalling) {
-                        MaterialTheme.colorScheme.onSurfaceVariant
-                    } else {
-                        MaterialTheme.colorScheme.primary
-                    }
-                )
-            }
-
-            if (isNativeCalling) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    if (nativeCallState == NativeSipManager.State.Connected) {
-                        Button(
-                            onClick = onToggleNativeSpeaker,
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Text(if (isSpeakerEnabled) "Earpiece" else "Speaker")
-                        }
-                    }
+                    Text(
+                        text = number,
+                        style = MaterialTheme.typography.bodyLarge,
+                        modifier = Modifier.weight(1f),
+                        maxLines = 1
+                    )
 
-                    Button(
-                        onClick = onEndNativeCall,
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Call,
-                            contentDescription = "End call"
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Hang Up")
-                    }
+                    SmallContactAction(
+                        icon = Icons.Default.Call,
+                        label = if (isNativeCalling) "Calling" else "Call",
+                        enabled = !isNativeCalling && !isCalling,
+                        onClick = onNativeCall
+                    )
+
+                    SmallContactAction(
+                        icon = Icons.Default.Call,
+                        label = if (isCalling) "Calling" else "PBX",
+                        enabled = !isCalling && !isNativeCalling,
+                        onClick = onVoipCall
+                    )
+
+                    SmallContactAction(
+                        painter = painterResource(id = R.drawable.ic_whatsapp),
+                        label = "WhatsApp",
+                        onClick = {
+                            val intent = Intent(
+                                Intent.ACTION_VIEW,
+                                Uri.parse("https://wa.me/${formatWhatsAppNumber(number)}")
+                            )
+                            context.startActivity(intent)
+                        }
+                    )
                 }
             }
         }
 
         phone2?.takeIf { it.isNotBlank() }?.let { number ->
-            Button(
-                onClick = {
-                    val intent = Intent(
-                        Intent.ACTION_DIAL,
-                        Uri.parse("tel:${Uri.encode(number)}")
-                    )
-                    context.startActivity(intent)
-                },
-                modifier = Modifier.fillMaxWidth()
+            Column(
+                verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                Icon(
-                    imageVector = Icons.Default.Call,
-                    contentDescription = "Call phone 2"
+                Text(
+                    text = "Phone 2",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                Spacer(modifier = Modifier.width(6.dp))
-                Text("Call Phone 2")
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = number,
+                        style = MaterialTheme.typography.bodyLarge,
+                        modifier = Modifier.weight(1f),
+                        maxLines = 1
+                    )
+
+                    SmallContactAction(
+                        icon = Icons.Default.Call,
+                        label = "Phone 2",
+                        onClick = {
+                            val intent = Intent(
+                                Intent.ACTION_DIAL,
+                                Uri.parse("tel:${Uri.encode(number)}")
+                            )
+                            context.startActivity(intent)
+                        }
+                    )
+                }
             }
         }
 
         email?.takeIf { it.isNotBlank() }?.let { address ->
-            Button(
-                onClick = {
-                    val intent = Intent(
-                        Intent.ACTION_SENDTO,
-                        Uri.parse("mailto:${Uri.encode(address)}")
-                    )
-                    context.startActivity(intent)
-                },
-                modifier = Modifier.fillMaxWidth()
+            Column(
+                verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                Icon(
-                    imageVector = Icons.Default.Email,
-                    contentDescription = "Email"
+                Text(
+                    text = "Email",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                Spacer(modifier = Modifier.width(6.dp))
-                Text("Email")
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = address,
+                        style = MaterialTheme.typography.bodyLarge,
+                        modifier = Modifier.weight(1f),
+                        maxLines = 1
+                    )
+
+                    SmallContactAction(
+                        icon = Icons.Default.Email,
+                        label = "Email",
+                        onClick = {
+                            val intent = Intent(
+                                Intent.ACTION_SENDTO,
+                                Uri.parse("mailto:${Uri.encode(address)}")
+                            )
+                            context.startActivity(intent)
+                        }
+                    )
+                }
             }
         }
+
+        callMessage?.let { message ->
+            Text(
+                text = message,
+                style = MaterialTheme.typography.bodySmall,
+                color = if (isCalling) {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                } else {
+                    MaterialTheme.colorScheme.primary
+                }
+            )
+        }
+
+        nativeCallMessage?.let { message ->
+            Text(
+                text = message,
+                style = MaterialTheme.typography.bodySmall,
+                color = if (isNativeCalling) {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                } else {
+                    MaterialTheme.colorScheme.primary
+                }
+            )
+        }
+
+        if (isNativeCalling) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                if (nativeCallState == NativeSipManager.State.Connected) {
+                    SmallContactAction(
+                        icon = Icons.Default.VolumeUp,
+                        label = if (isSpeakerEnabled) "Earpiece" else "Speaker",
+                        onClick = onToggleNativeSpeaker
+                    )
+                }
+
+                SmallContactAction(
+                    icon = Icons.Default.Call,
+                    label = "Hang Up",
+                    actionColor = MaterialTheme.colorScheme.error,
+                    borderColor = MaterialTheme.colorScheme.error.copy(alpha = 0.55f),
+                    onClick = onEndNativeCall
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun SmallContactAction(
+    icon: ImageVector? = null,
+    painter: Painter? = null,
+    label: String,
+    enabled: Boolean = true,
+    actionColor: Color? = null,
+    borderColor: Color? = null,
+    onClick: () -> Unit
+) {
+    val resolvedActionColor = actionColor ?: MaterialTheme.colorScheme.primary
+    val resolvedBorderColor =
+        borderColor ?: resolvedActionColor.copy(alpha = 0.55f)
+
+    OutlinedButton(
+        onClick = onClick,
+        enabled = enabled,
+        modifier = Modifier.height(30.dp),
+        contentPadding = PaddingValues(
+            horizontal = 8.dp,
+            vertical = 0.dp
+        ),
+        border = BorderStroke(
+            1.dp,
+            resolvedBorderColor
+        )
+    ) {
+        when {
+            painter != null -> {
+                Icon(
+                    painter = painter,
+                    contentDescription = label,
+                    modifier = Modifier.size(16.dp)
+                )
+            }
+
+            icon != null -> {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = label,
+                    modifier = Modifier.size(16.dp)
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.width(4.dp))
+
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = resolvedActionColor,
+            maxLines = 1
+        )
     }
 }
 
@@ -1796,24 +2172,70 @@ private fun formatWhatsAppNumber(number: String): String {
 @Composable
 private fun LeadSectionCard(
     title: String,
+    trailingAction: (@Composable () -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = androidx.compose.material3.CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        border = androidx.compose.foundation.BorderStroke(
+            1.dp,
+            MaterialTheme.colorScheme.outlineVariant
+        )
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
             content = {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = title,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
 
-                Spacer(modifier = Modifier.height(8.dp))
+                    trailingAction?.invoke()
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
 
                 content()
             }
+        )
+    }
+}
+
+@Composable
+private fun InlineDetailText(
+    label: String,
+    value: String?
+) {
+    if (value.isNullOrBlank()) return
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 2.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = "$label:",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            fontWeight = FontWeight.Medium
+        )
+        Spacer(modifier = Modifier.width(4.dp))
+        Text(
+            text = value,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurface
         )
     }
 }
@@ -1844,20 +2266,51 @@ private fun DetailText(
 private fun FollowUpItem(
     followUp: FollowUpResponse
 ) {
-    Column(
-        modifier = Modifier.padding(vertical = 6.dp)
-    ) {
-        Text(
-            text = followUp.followUpType.replace('_', ' '),
-            style = MaterialTheme.typography.bodyLarge,
-            fontWeight = FontWeight.Medium
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        shape = RoundedCornerShape(12.dp),
+        colors = androidx.compose.material3.CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        border = BorderStroke(
+            1.dp,
+            MaterialTheme.colorScheme.outlineVariant
         )
+    ) {
+        Column(
+            modifier = Modifier.padding(12.dp)
+        ) {
+            Text(
+                text = followUp.followUpType
+                    .replace('_', ' ')
+                    .replaceFirstChar { it.uppercase() },
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold
+            )
 
-        DetailText("Scheduled", formatLeadDateTime(followUp.scheduledAt))
-        DetailText("Completed", formatLeadDateTime(followUp.completedAt))
-        DetailText("Outcome", followUp.outcome)
-        DetailText("Notes", followUp.notes)
-        DetailText("Staff", followUp.staffName)
+            DetailText(
+                "Scheduled",
+                formatLeadDateTime(followUp.scheduledAt)
+            )
+            DetailText(
+                "Completed",
+                formatLeadDateTime(followUp.completedAt)
+            )
+            DetailText(
+                "Outcome",
+                followUp.outcome
+            )
+            DetailText(
+                "Staff",
+                followUp.staffName
+            )
+            DetailText(
+                "Notes",
+                followUp.notes
+            )
+        }
     }
 }
 

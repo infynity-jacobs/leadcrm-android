@@ -13,17 +13,23 @@ import android.os.Handler
 import android.os.Looper
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -31,6 +37,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
@@ -47,28 +54,114 @@ fun LeadDropdownField(
     enabled: Boolean
 ) {
     var expanded by remember { mutableStateOf(false) }
+
     val selectedLabel = options.firstOrNull { it.first == selectedValue }?.second
         ?: selectedValue.takeIf { it.isNotBlank() }
         ?: "-- None --"
-    Column {
-        Text(label, style = MaterialTheme.typography.labelMedium)
-        androidx.compose.foundation.layout.Box {
-            OutlinedButton(
-                onClick = { expanded = true },
+
+    Column(
+        modifier = Modifier.padding(vertical = 4.dp)
+    ) {
+        androidx.compose.foundation.layout.Box(
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            androidx.compose.material3.OutlinedTextField(
+                value = selectedLabel,
+                onValueChange = {},
+                modifier = Modifier.fillMaxWidth(),
+                label = { Text(label) },
+                readOnly = true,
                 enabled = enabled,
-                modifier = Modifier.fillMaxWidth()
-            ) { Text(selectedLabel) }
-            DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-                options.forEach { (value, title) ->
-                    DropdownMenuItem(
-                        text = { Text(title) },
-                        onClick = {
-                            onSelected(value)
-                            expanded = false
-                        }
+                singleLine = true,
+                trailingIcon = {
+                    Text(
+                        text = "▼",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
+            )
+
+            if (enabled) {
+                androidx.compose.foundation.layout.Box(
+                    modifier = Modifier
+                        .matchParentSize()
+                        .clickable { expanded = true }
+                )
             }
+        }
+
+        if (expanded) {
+            AlertDialog(
+                onDismissRequest = { expanded = false },
+                shape = RoundedCornerShape(20.dp),
+                containerColor = MaterialTheme.colorScheme.surface,
+                titleContentColor = MaterialTheme.colorScheme.onSurface,
+                textContentColor = MaterialTheme.colorScheme.onSurface,
+                tonalElevation = 0.dp,
+                title = {
+                    Text(
+                        text = label,
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                },
+                text = {
+                    androidx.compose.foundation.lazy.LazyColumn(
+                        modifier = Modifier.heightIn(max = 360.dp)
+                    ) {
+                        items(options.size) { index ->
+                            val (value, title) = options[index]
+                            val isSelected = value == selectedValue
+
+                            Surface(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        onSelected(value)
+                                        expanded = false
+                                    },
+                                shape = RoundedCornerShape(10.dp),
+                                color = if (isSelected) {
+                                    MaterialTheme.colorScheme.primaryContainer
+                                } else {
+                                    MaterialTheme.colorScheme.surface
+                                }
+                            ) {
+                                Text(
+                                    text = title,
+                                    modifier = Modifier.padding(
+                                        horizontal = 14.dp,
+                                        vertical = 12.dp
+                                    ),
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    fontWeight = if (isSelected) {
+                                        FontWeight.SemiBold
+                                    } else {
+                                        FontWeight.Normal
+                                    },
+                                    color = if (isSelected) {
+                                        MaterialTheme.colorScheme.onPrimaryContainer
+                                    } else {
+                                        MaterialTheme.colorScheme.onSurface
+                                    }
+                                )
+                            }
+
+                            if (index < options.lastIndex) {
+                                Spacer(modifier = Modifier.height(4.dp))
+                            }
+                        }
+                    }
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = { expanded = false }
+                    ) {
+                        Text("Cancel")
+                    }
+                }
+            )
         }
     }
 }

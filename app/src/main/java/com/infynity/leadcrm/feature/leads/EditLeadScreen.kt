@@ -1,5 +1,6 @@
 package com.infynity.leadcrm.feature.leads
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -14,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
@@ -517,7 +519,9 @@ private fun EditLeadForm(
             ) {
                 OutlinedButton(
                     onClick = onCancel,
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(40.dp),
                     enabled = !isSaving
                 ) {
                     Text("Cancel")
@@ -525,12 +529,15 @@ private fun EditLeadForm(
 
                 Button(
                     onClick = onSave,
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(40.dp),
                     enabled = !isSaving && firstName.isNotBlank()
                 ) {
                     if (isSaving) {
                         CircularProgressIndicator(
-                            modifier = Modifier.height(18.dp)
+                            modifier = Modifier.height(18.dp),
+                            strokeWidth = 2.dp
                         )
                     } else {
                         Text("Save")
@@ -581,21 +588,28 @@ private fun EditSectionCard(
     content: @Composable ColumnScope.() -> Unit
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = androidx.compose.material3.CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        border = BorderStroke(
+            1.dp,
+            MaterialTheme.colorScheme.outlineVariant
+        )
     ) {
         Column(
-            modifier = Modifier.padding(16.dp),
-            content = {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold
-                )
+            modifier = Modifier.padding(16.dp)
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold
+            )
 
-                Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
-                content()
-            }
-        )
+            content()
+        }
     }
 }

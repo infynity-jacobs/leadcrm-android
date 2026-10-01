@@ -1,5 +1,6 @@
 package com.infynity.leadcrm.feature.tasks
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -16,9 +17,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
@@ -26,16 +27,24 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.shape.RoundedCornerShape
 import com.infynity.leadcrm.core.network.models.TaskResponse
 import java.time.Instant
 import java.time.ZoneId
@@ -69,11 +78,15 @@ fun TasksScreen(
                     modifier = Modifier.weight(1f)
                 )
 
-                IconButton(onClick = onNewTask) {
-                    Icon(
-                        imageVector = Icons.Default.Add,
-                        contentDescription = "New task"
-                    )
+                OutlinedButton(
+                    onClick = onNewTask,
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                        horizontal = 12.dp,
+                        vertical = 0.dp
+                    ),
+                    modifier = Modifier.height(36.dp)
+                ) {
+                    Text("+ New Task")
                 }
 
                 IconButton(onClick = viewModel::refresh) {
@@ -109,69 +122,54 @@ fun TasksScreen(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            FilterRow {
-                FilterChip(
-                    selected = uiState.selectedStatusId == null,
-                    onClick = { viewModel.setStatus(null) },
-                    label = { Text("All") }
-                )
+            var filterDialogOpen by remember { mutableStateOf(false) }
 
-                uiState.statuses.forEach { status ->
-                    FilterChip(
-                        selected = uiState.selectedStatusId == status.id,
-                        onClick = { viewModel.setStatus(status.id) },
-                        label = { Text(status.name) }
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            FilterRow {
-                FilterChip(
-                    selected = uiState.selectedPriority == null,
-                    onClick = { viewModel.setPriority(null) },
-                    label = { Text("All priorities") }
-                )
-
-                listOf("low", "medium", "high", "urgent").forEach { priority ->
-                    FilterChip(
-                        selected = uiState.selectedPriority == priority,
-                        onClick = { viewModel.setPriority(priority) },
-                        label = {
-                            Text(priority.replaceFirstChar { it.uppercase() })
-                        }
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            FilterRow {
-                FilterChip(
-                    selected = uiState.selectedTaskType == null,
-                    onClick = { viewModel.setTaskType(null) },
-                    label = { Text("All types") }
-                )
-
+            val activeFilterCount =
                 listOf(
-                    "follow_up",
-                    "call",
-                    "meeting",
-                    "site_visit",
-                    "document",
-                    "installation",
-                    "payment",
-                    "general"
-                ).forEach { taskType ->
-                    FilterChip(
-                        selected = uiState.selectedTaskType == taskType,
-                        onClick = { viewModel.setTaskType(taskType) },
-                        label = {
-                            Text(formatTaskType(taskType))
-                        }
-                    )
-                }
+                    uiState.selectedStatusId != null,
+                    uiState.selectedPriority != null,
+                    uiState.selectedTaskType != null
+                ).count { it }
+
+            OutlinedButton(
+                onClick = { filterDialogOpen = true },
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                    horizontal = 14.dp,
+                    vertical = 0.dp
+                ),
+                modifier = Modifier.height(40.dp)
+            ) {
+                Text(
+                    text = if (activeFilterCount == 0) {
+                        "Filters"
+                    } else {
+                        "Filters · $activeFilterCount"
+                    }
+                )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            if (filterDialogOpen) {
+                TaskFiltersDialog(
+                    statuses = uiState.statuses,
+                    selectedStatusId = uiState.selectedStatusId,
+                    selectedPriority = uiState.selectedPriority,
+                    selectedTaskType = uiState.selectedTaskType,
+                    onDismiss = { filterDialogOpen = false },
+                    onApply = { statusId, priority, taskType ->
+                        viewModel.setStatus(statusId)
+                        viewModel.setPriority(priority)
+                        viewModel.setTaskType(taskType)
+                        filterDialogOpen = false
+                    },
+                    onReset = {
+                        viewModel.setStatus(null)
+                        viewModel.setPriority(null)
+                        viewModel.setTaskType(null)
+                        filterDialogOpen = false
+                    }
+                )
             }
 
             Spacer(modifier = Modifier.height(12.dp))
@@ -242,16 +240,161 @@ fun TasksScreen(
 }
 
 @Composable
-private fun FilterRow(
+private fun TaskFiltersDialog(
+    statuses: List<com.infynity.leadcrm.core.network.models.TaskStatusResponse>,
+    selectedStatusId: Int?,
+    selectedPriority: String?,
+    selectedTaskType: String?,
+    onDismiss: () -> Unit,
+    onApply: (Int?, String?, String?) -> Unit,
+    onReset: () -> Unit
+) {
+    var localStatusId by remember { mutableStateOf(selectedStatusId) }
+    var localPriority by remember { mutableStateOf(selectedPriority) }
+    var localTaskType by remember { mutableStateOf(selectedTaskType) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        shape = RoundedCornerShape(20.dp),
+        containerColor = MaterialTheme.colorScheme.surface,
+        tonalElevation = 0.dp,
+        title = {
+            Text(
+                text = "Filters",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.SemiBold
+            )
+        },
+        text = {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                TaskFilterDialogSection(
+                    title = "Status"
+                ) {
+                    FilterChip(
+                        selected = localStatusId == null,
+                        onClick = { localStatusId = null },
+                        label = { Text("All") }
+                    )
+
+                    statuses.forEach { status ->
+                        FilterChip(
+                            selected = localStatusId == status.id,
+                            onClick = { localStatusId = status.id },
+                            label = {
+                                Text(
+                                    text = status.name,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        )
+                    }
+                }
+
+                TaskFilterDialogSection(
+                    title = "Priority"
+                ) {
+                    FilterChip(
+                        selected = localPriority == null,
+                        onClick = { localPriority = null },
+                        label = { Text("All") }
+                    )
+
+                    listOf("low", "medium", "high", "urgent").forEach { priority ->
+                        FilterChip(
+                            selected = localPriority == priority,
+                            onClick = { localPriority = priority },
+                            label = {
+                                Text(priority.replaceFirstChar { it.uppercase() })
+                            }
+                        )
+                    }
+                }
+
+                TaskFilterDialogSection(
+                    title = "Type"
+                ) {
+                    FilterChip(
+                        selected = localTaskType == null,
+                        onClick = { localTaskType = null },
+                        label = { Text("All") }
+                    )
+
+                    listOf(
+                        "follow_up",
+                        "call",
+                        "meeting",
+                        "site_visit",
+                        "document",
+                        "installation",
+                        "payment",
+                        "general"
+                    ).forEach { taskType ->
+                        FilterChip(
+                            selected = localTaskType == taskType,
+                            onClick = { localTaskType = taskType },
+                            label = { Text(formatTaskType(taskType)) }
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            OutlinedButton(
+                onClick = {
+                    onApply(
+                        localStatusId,
+                        localPriority,
+                        localTaskType
+                    )
+                }
+            ) {
+                Text("Apply")
+            }
+        },
+        dismissButton = {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                TextButton(onClick = onReset) {
+                    Text("Reset")
+                }
+
+                TextButton(onClick = onDismiss) {
+                    Text("Cancel")
+                }
+            }
+        }
+    )
+}
+
+@Composable
+private fun TaskFilterDialogSection(
+    title: String,
     content: @Composable RowScope.() -> Unit
 ) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .horizontalScroll(rememberScrollState()),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        content = content
-    )
+    Column(
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = FontWeight.Medium
+        )
+
+        Spacer(modifier = Modifier.height(6.dp))
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            content = content
+        )
+    }
 }
 
 @Composable
@@ -259,10 +402,16 @@ private fun TaskCard(
     task: TaskResponse,
     onClick: () -> Unit
 ) {
-    Card(
+    Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(12.dp),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(
+            1.dp,
+            MaterialTheme.colorScheme.outlineVariant
+        )
     ) {
         Column(
             modifier = Modifier

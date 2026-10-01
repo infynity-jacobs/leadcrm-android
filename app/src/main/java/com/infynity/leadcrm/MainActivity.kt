@@ -20,6 +20,7 @@ import com.infynity.leadcrm.feature.auth.AuthViewModel
 import com.infynity.leadcrm.feature.auth.AuthViewModelFactory
 import com.infynity.leadcrm.feature.auth.LoginScreen
 import com.infynity.leadcrm.core.navigation.AppShell
+import com.infynity.leadcrm.core.theme.InfynityCrmTheme
 
 class MainActivity : ComponentActivity() {
 
@@ -52,7 +53,7 @@ fun LeadCRMApp(
     onLogin: (username: String, password: String) -> Unit,
     onLogout: () -> Unit
 ) {
-    MaterialTheme {
+    InfynityCrmTheme {
         when (uiState) {
             AuthUiState.CheckingSession -> {
                 LoadingScreen()

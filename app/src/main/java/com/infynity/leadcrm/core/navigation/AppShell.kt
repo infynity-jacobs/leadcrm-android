@@ -233,6 +233,8 @@ fun AppShell(
                 key = "calendar-event-edit-$eventId",
                 factory = CalendarEventEditViewModelFactory(
                     application.appContainer.calendarRepository,
+                    application.appContainer.leadRepository,
+                    application.appContainer.taskRepository,
                     eventId
                 )
             )
@@ -292,7 +294,20 @@ fun AppShell(
                 AppDestination.HOME -> {
                     HomeScreen(
                         user = currentUser,
-                        viewModel = homeViewModel
+                        viewModel = homeViewModel,
+                        onLeadSelected = { leadId ->
+                            selectedLeadId = leadId
+                            currentDestination = AppDestination.LEADS
+                        },
+                        onTaskSelected = { taskId ->
+                            taskReturnToLeadId = null
+                            selectedTaskId = taskId
+                            currentDestination = AppDestination.TASKS
+                        },
+                        onCalendarEventSelected = { eventId ->
+                            selectedCalendarEventId = eventId
+                            currentDestination = AppDestination.CALENDAR
+                        }
                     )
                 }
 

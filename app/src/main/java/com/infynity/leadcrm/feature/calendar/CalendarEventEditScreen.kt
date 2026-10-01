@@ -13,8 +13,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -26,6 +28,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -41,10 +44,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import com.infynity.leadcrm.core.network.models.CalendarEventUpdateRequest
+import com.infynity.leadcrm.core.network.models.LeadResponse
+import com.infynity.leadcrm.core.network.models.TaskResponse
 import java.time.LocalDateTime
 import java.time.OffsetDateTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.TextButton
 
 @Composable
 fun CalendarEventEditScreen(
@@ -65,6 +72,11 @@ fun CalendarEventEditScreen(
     var status by remember { mutableStateOf("scheduled") }
     var outcome by remember { mutableStateOf("") }
 
+    var selectedLead by remember { mutableStateOf<LeadResponse?>(null) }
+    var leadSearchQuery by remember { mutableStateOf("") }
+    var selectedTask by remember { mutableStateOf<TaskResponse?>(null) }
+    var taskSearchQuery by remember { mutableStateOf("") }
+
     LaunchedEffect(uiState.event?.id) {
         val event = uiState.event ?: return@LaunchedEffect
 
@@ -78,7 +90,32 @@ fun CalendarEventEditScreen(
             location = event.location.orEmpty()
             status = event.status
             outcome = event.outcome.orEmpty()
+
+            selectedLead = null
+            selectedTask = null
+            leadSearchQuery = ""
+            taskSearchQuery = ""
+
+            event.leadId?.let { leadId ->
+                viewModel.loadLeadForSelection(
+                    leadId = leadId,
+                    leadName = event.leadName
+                )
+            }
+
+            event.taskId?.let { taskId ->
+                selectedTask = uiState.allTasks.firstOrNull {
+                    it.id == taskId
+                }
+            }
+
             initializedEventId = event.id
+        }
+    }
+
+    LaunchedEffect(uiState.selectedLead?.id) {
+        uiState.selectedLead?.let {
+            selectedLead = it
         }
     }
 
@@ -159,8 +196,42 @@ fun CalendarEventEditScreen(
                     onStatusChange = { status = it },
                     outcome = outcome,
                     onOutcomeChange = { outcome = it },
-                    linkedLead = uiState.event?.leadName,
-                    linkedTask = uiState.event?.taskTitle,
+                    selectedLead = selectedLead,
+                    leadSearchQuery = leadSearchQuery,
+                    onLeadSearchQueryChange = {
+                        leadSearchQuery = it
+                        viewModel.searchLeads(it)
+                    },
+                    onLeadSelected = {
+                        selectedLead = it
+                        leadSearchQuery = ""
+                    },
+                    onLeadClear = {
+                        selectedLead = null
+                        leadSearchQuery = ""
+                        viewModel.searchLeads("")
+                    },
+                    selectedTask = selectedTask,
+                    taskSearchQuery = taskSearchQuery,
+                    onTaskSearchQueryChange = {
+                        taskSearchQuery = it
+                        viewModel.searchTasks(it)
+                    },
+                    onTaskSelected = {
+                        selectedTask = it
+                        taskSearchQuery = ""
+                    },
+                    onTaskClear = {
+                        selectedTask = null
+                        taskSearchQuery = ""
+                        viewModel.searchTasks("")
+                    },
+                    leadSearchResults = uiState.leadSearchResults,
+                    isSearchingLeads = uiState.isSearchingLeads,
+                    leadSearchError = uiState.leadSearchError,
+                    taskSearchResults = uiState.taskSearchResults,
+                    isLoadingTasks = uiState.isLoadingTasks,
+                    taskSearchError = uiState.taskSearchError,
                     assignedTo = uiState.event?.assignedToName,
                     teamName = uiState.event?.teamName,
                     isSaving = uiState.isSaving,
@@ -199,6 +270,8 @@ fun CalendarEventEditScreen(
                                     location = location
                                         .trim()
                                         .ifBlank { null },
+                                    leadId = selectedLead?.id,
+                                    taskId = selectedTask?.id,
                                     status = status.ifBlank { null },
                                     outcome = outcome
                                         .trim()
@@ -233,8 +306,22 @@ private fun CalendarEventEditForm(
     onStatusChange: (String) -> Unit,
     outcome: String,
     onOutcomeChange: (String) -> Unit,
-    linkedLead: String?,
-    linkedTask: String?,
+    selectedLead: LeadResponse?,
+    leadSearchQuery: String,
+    onLeadSearchQueryChange: (String) -> Unit,
+    onLeadSelected: (LeadResponse) -> Unit,
+    onLeadClear: () -> Unit,
+    selectedTask: TaskResponse?,
+    taskSearchQuery: String,
+    onTaskSearchQueryChange: (String) -> Unit,
+    onTaskSelected: (TaskResponse) -> Unit,
+    onTaskClear: () -> Unit,
+    leadSearchResults: List<LeadResponse>,
+    isSearchingLeads: Boolean,
+    leadSearchError: String?,
+    taskSearchResults: List<TaskResponse>,
+    isLoadingTasks: Boolean,
+    taskSearchError: String?,
     assignedTo: String?,
     teamName: String?,
     isSaving: Boolean,
@@ -407,39 +494,299 @@ private fun CalendarEventEditForm(
             )
         }
 
-        if (linkedLead != null ||
-            linkedTask != null ||
-            assignedTo != null ||
-            teamName != null
-        ) {
-            CalendarEditSectionCard(title = "Links & Assignment") {
-                linkedLead?.let {
-                    CalendarReadOnlyValue(
-                        label = "Lead",
-                        value = it
+        CalendarEditSectionCard(title = "Links & Assignment") {
+            Text(
+                text = "Lead",
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.Medium
+            )
+
+            if (selectedLead == null) {
+                OutlinedTextField(
+                    value = leadSearchQuery,
+                    onValueChange = onLeadSearchQueryChange,
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("Search Lead") },
+                    placeholder = { Text("Search by name, phone or company") },
+                    singleLine = true,
+                    enabled = !isSaving
+                )
+
+                if (isSearchingLeads) {
+                    CircularProgressIndicator(
+                        modifier = Modifier
+                            .size(20.dp)
+                            .align(Alignment.CenterHorizontally),
+                        strokeWidth = 2.dp
                     )
                 }
 
-                linkedTask?.let {
-                    CalendarReadOnlyValue(
-                        label = "Task",
-                        value = it
+                leadSearchResults.forEach { lead ->
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable(enabled = !isSaving) {
+                                onLeadSelected(lead)
+                            },
+                        shape = RoundedCornerShape(12.dp),
+                        color = MaterialTheme.colorScheme.surface,
+                        border = BorderStroke(
+                            1.dp,
+                            MaterialTheme.colorScheme.outlineVariant
+                        )
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(12.dp)
+                        ) {
+                            Text(
+                                text = listOfNotNull(
+                                    lead.firstName,
+                                    lead.lastName
+                                ).joinToString(" ")
+                                    .ifBlank { "Unnamed Lead" },
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.SemiBold
+                            )
+
+                            lead.company?.takeIf {
+                                it.isNotBlank()
+                            }?.let {
+                                Text(
+                                    text = it,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+
+                            lead.phone?.takeIf {
+                                it.isNotBlank()
+                            }?.let {
+                                Text(
+                                    text = it,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+                }
+
+                leadSearchError?.takeIf {
+                    it.isNotBlank()
+                }?.let {
+                    Text(
+                        text = it,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+            } else {
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    color = MaterialTheme.colorScheme.surface,
+                    border = BorderStroke(
+                        1.dp,
+                        MaterialTheme.colorScheme.outlineVariant
+                    )
+                ) {
+                    Column(
+                        modifier = Modifier.padding(12.dp)
+                    ) {
+                        Text(
+                            text = listOfNotNull(
+                                selectedLead.firstName,
+                                selectedLead.lastName
+                            ).joinToString(" ")
+                                .ifBlank { "Unnamed Lead" },
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.SemiBold
+                        )
+
+                        selectedLead.company?.takeIf {
+                            it.isNotBlank()
+                        }?.let {
+                            Text(
+                                text = it,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            TextButton(
+                                onClick = onLeadClear,
+                                enabled = !isSaving
+                            ) {
+                                Text("Change")
+                            }
+
+                            TextButton(
+                                onClick = onLeadClear,
+                                enabled = !isSaving
+                            ) {
+                                Text("Clear")
+                            }
+                        }
+                    }
+                }
+            }
+
+            Text(
+                text = "Task",
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.Medium
+            )
+
+            if (selectedTask == null) {
+                OutlinedTextField(
+                    value = taskSearchQuery,
+                    onValueChange = onTaskSearchQueryChange,
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("Search Task") },
+                    placeholder = { Text("Search by task title or lead") },
+                    singleLine = true,
+                    enabled = !isSaving
+                )
+
+                if (isLoadingTasks) {
+                    CircularProgressIndicator(
+                        modifier = Modifier
+                            .size(20.dp)
+                            .align(Alignment.CenterHorizontally),
+                        strokeWidth = 2.dp
                     )
                 }
 
-                assignedTo?.let {
-                    CalendarReadOnlyValue(
-                        label = "Assigned To",
-                        value = it
-                    )
+                taskSearchResults.forEach { task ->
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable(enabled = !isSaving) {
+                                onTaskSelected(task)
+                            },
+                        shape = RoundedCornerShape(12.dp),
+                        color = MaterialTheme.colorScheme.surface,
+                        border = BorderStroke(
+                            1.dp,
+                            MaterialTheme.colorScheme.outlineVariant
+                        )
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(12.dp)
+                        ) {
+                            Text(
+                                text = task.title,
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.SemiBold
+                            )
+
+                            task.leadName?.takeIf {
+                                it.isNotBlank()
+                            }?.let {
+                                Text(
+                                    text = it,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+
+                            task.statusName?.takeIf {
+                                it.isNotBlank()
+                            }?.let {
+                                Text(
+                                    text = it,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
                 }
 
-                teamName?.let {
-                    CalendarReadOnlyValue(
-                        label = "Team",
-                        value = it
+                taskSearchError?.takeIf {
+                    it.isNotBlank()
+                }?.let {
+                    Text(
+                        text = it,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall
                     )
                 }
+            } else {
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    color = MaterialTheme.colorScheme.surface,
+                    border = BorderStroke(
+                        1.dp,
+                        MaterialTheme.colorScheme.outlineVariant
+                    )
+                ) {
+                    Column(
+                        modifier = Modifier.padding(12.dp)
+                    ) {
+                        Text(
+                            text = selectedTask.title,
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.SemiBold
+                        )
+
+                        selectedTask.statusName?.takeIf {
+                            it.isNotBlank()
+                        }?.let {
+                            Text(
+                                text = it,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+
+                        selectedTask.leadName?.takeIf {
+                            it.isNotBlank()
+                        }?.let {
+                            Text(
+                                text = it,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            TextButton(
+                                onClick = onTaskClear,
+                                enabled = !isSaving
+                            ) {
+                                Text("Change")
+                            }
+
+                            TextButton(
+                                onClick = onTaskClear,
+                                enabled = !isSaving
+                            ) {
+                                Text("Clear")
+                            }
+                        }
+                    }
+                }
+            }
+
+            assignedTo?.let {
+                CalendarReadOnlyValue(
+                    label = "Assigned To",
+                    value = it
+                )
+            }
+
+            teamName?.let {
+                CalendarReadOnlyValue(
+                    label = "Team",
+                    value = it
+                )
             }
         }
 
@@ -616,20 +963,24 @@ private fun CalendarEditSectionCard(
     title: String,
     content: @Composable ColumnScope.() -> Unit
 ) {
-    Card(
-        modifier = Modifier.fillMaxWidth()
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(
+            1.dp,
+            MaterialTheme.colorScheme.outlineVariant
+        )
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp)
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Text(
                 text = title,
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold
             )
-
-            Spacer(modifier = Modifier.height(4.dp))
 
             content()
         }

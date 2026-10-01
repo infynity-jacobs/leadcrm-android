@@ -1,11 +1,13 @@
 package com.infynity.leadcrm.feature.calendar
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.fillMaxSize
@@ -23,16 +25,18 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.material3.Surface
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -95,7 +99,7 @@ fun CalendarScreen(
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        CalendarFilters(
+        CalendarFilterControl(
             selectedStatus = state.selectedStatus,
             selectedEventType = state.selectedEventType,
             onStatusSelected = viewModel::setStatus,
@@ -250,7 +254,14 @@ private fun CalendarHeader(
         Row(
             horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-            TextButton(onClick = onNewEvent) {
+            OutlinedButton(
+                onClick = onNewEvent,
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                    horizontal = 12.dp,
+                    vertical = 0.dp
+                ),
+                modifier = Modifier.height(36.dp)
+            ) {
                 Text("+ New Event")
             }
 
@@ -285,13 +296,23 @@ private fun CalendarViewSelector(
         CalendarViewMode.entries.forEach { mode ->
             if (mode == selectedMode) {
                 OutlinedButton(
-                    onClick = { onModeSelected(mode) }
+                    onClick = { onModeSelected(mode) },
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                        horizontal = 14.dp,
+                        vertical = 0.dp
+                    ),
+                    modifier = Modifier.height(36.dp)
                 ) {
                     Text(mode.displayName())
                 }
             } else {
                 TextButton(
-                    onClick = { onModeSelected(mode) }
+                    onClick = { onModeSelected(mode) },
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                        horizontal = 10.dp,
+                        vertical = 0.dp
+                    ),
+                    modifier = Modifier.height(36.dp)
                 ) {
                     Text(mode.displayName())
                 }
@@ -564,64 +585,91 @@ private fun WeekCalendarGrid(
                             }
                         }
 
-                        dayEvents.forEach { event ->
-                            val start = parseEventInstant(
-                                event.startAt
-                            )?.atZone(zoneId)
+                        val placements = buildWeekEventPlacements(
+                            events = dayEvents,
+                            zoneId = zoneId
+                        )
 
-                            val end = parseEventInstant(
-                                event.endAt
-                            )?.atZone(zoneId)
+                        placements.forEach { placement ->
+                            val topOffset =
+                                hourHeight *
+                                    ((placement.startMinutes / 60f) - firstHour)
 
-                            if (start != null) {
-                                val startMinutes =
-                                    start.hour * 60 + start.minute
-
-                                val endMinutes =
-                                    if (end != null) {
-                                        end.hour * 60 + end.minute
-                                    } else {
-                                        startMinutes + 30
-                                    }
-
-                                val topOffset =
+                            val eventHeight =
+                                maxOf(
+                                    40.dp,
                                     hourHeight *
-                                        ((startMinutes / 60f) - firstHour)
+                                        ((placement.endMinutes - placement.startMinutes) / 60f)
+                                )
 
-                                val eventHeight =
-                                    maxOf(
-                                        40.dp,
-                                        hourHeight *
-                                            ((endMinutes - startMinutes) / 60f)
+                            val columnWidth =
+                                dayColumnWidth / placement.columnCount
+
+                            Surface(
+                                modifier = Modifier
+                                    .width(columnWidth)
+                                    .padding(horizontal = 2.dp)
+                                    .offset(
+                                        x = columnWidth * placement.column,
+                                        y = topOffset
+                                    )
+                                    .height(eventHeight)
+                                    .clickable {
+                                        onEventSelected(placement.event.id)
+                                    },
+                                shape = RoundedCornerShape(10.dp),
+                                color = MaterialTheme.colorScheme.surface,
+                                border = BorderStroke(
+                                    1.dp,
+                                    MaterialTheme.colorScheme.outlineVariant
+                                )
+                            ) {
+                                val compact = placement.columnCount >= 3
+
+                                Column(
+                                    modifier = Modifier.padding(
+                                        horizontal = if (compact) 4.dp else 5.dp,
+                                        vertical = if (compact) 4.dp else 5.dp
+                                    ),
+                                    verticalArrangement = Arrangement.spacedBy(
+                                        if (compact) 1.dp else 2.dp
+                                    )
+                                ) {
+                                    Text(
+                                        text = placement.event.title,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = androidx.compose.ui.text.font.FontWeight.Medium,
+                                        maxLines = if (compact) 3 else 2,
+                                        overflow = TextOverflow.Ellipsis
                                     )
 
-                                Card(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(
-                                            start = 3.dp,
-                                            end = 3.dp
-                                        )
-                                        .offset(y = topOffset)
-                                        .height(eventHeight)
-                                        .clickable {
-                                            onEventSelected(event.id)
+                                    if (compact) {
+                                        val statusColor = when (
+                                            placement.event.status.lowercase()
+                                        ) {
+                                            "completed" ->
+                                                MaterialTheme.colorScheme.primary
+                                            "cancelled", "no_show" ->
+                                                MaterialTheme.colorScheme.error
+                                            else ->
+                                                MaterialTheme.colorScheme.onSurfaceVariant
                                         }
-                                ) {
-                                    Column(
-                                        modifier = Modifier.padding(6.dp)
-                                    ) {
-                                        Text(
-                                            text = event.title,
-                                            style = MaterialTheme.typography.labelMedium,
-                                            maxLines = 2
-                                        )
 
+                                        Surface(
+                                            modifier = Modifier
+                                                .width(6.dp)
+                                                .height(6.dp),
+                                            shape = RoundedCornerShape(50),
+                                            color = statusColor
+                                        ) {}
+                                    } else {
                                         Text(
-                                            text = event.status
+                                            text = placement.event.status
                                                 .formatFilterLabel(),
                                             style = MaterialTheme.typography.labelSmall,
-                                            maxLines = 1
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
                                         )
                                     }
                                 }
@@ -632,6 +680,121 @@ private fun WeekCalendarGrid(
             }
         }
     }
+}
+
+private data class WeekEventPlacement(
+    val event: CalendarEventResponse,
+    val startMinutes: Int,
+    val endMinutes: Int,
+    val column: Int,
+    val columnCount: Int
+)
+
+private data class ParsedWeekEvent(
+    val event: CalendarEventResponse,
+    val startMinutes: Int,
+    val endMinutes: Int
+)
+
+private fun buildWeekEventPlacements(
+    events: List<CalendarEventResponse>,
+    zoneId: ZoneId
+): List<WeekEventPlacement> {
+    val parsed = events.mapNotNull { event ->
+        val start = parseEventInstant(event.startAt)
+            ?.atZone(zoneId)
+
+        if (start == null) {
+            null
+        } else {
+            val startMinutes = start.hour * 60 + start.minute
+
+            val parsedEnd = parseEventInstant(event.endAt)
+                ?.atZone(zoneId)
+
+            val endMinutes = if (parsedEnd != null) {
+                parsedEnd.hour * 60 + parsedEnd.minute
+            } else {
+                startMinutes + 30
+            }
+
+            ParsedWeekEvent(
+                event = event,
+                startMinutes = startMinutes,
+                endMinutes = maxOf(
+                    startMinutes + 30,
+                    endMinutes
+                )
+            )
+        }
+    }.sortedWith(
+        compareBy<ParsedWeekEvent> { it.startMinutes }
+            .thenBy { it.endMinutes }
+    )
+
+    if (parsed.isEmpty()) {
+        return emptyList()
+    }
+
+    val placements = mutableListOf<WeekEventPlacement>()
+    var clusterStart = 0
+
+    while (clusterStart < parsed.size) {
+        var clusterEnd = clusterStart
+        var clusterEndTime = parsed[clusterStart].endMinutes
+
+        while (
+            clusterEnd + 1 < parsed.size &&
+            parsed[clusterEnd + 1].startMinutes < clusterEndTime
+        ) {
+            clusterEnd++
+            clusterEndTime = maxOf(
+                clusterEndTime,
+                parsed[clusterEnd].endMinutes
+            )
+        }
+
+        val cluster = parsed.subList(
+            clusterStart,
+            clusterEnd + 1
+        )
+
+        val columnEnds = mutableListOf<Int>()
+        val assignedColumns = mutableListOf<Int>()
+
+        cluster.forEach { event ->
+            var column = columnEnds.indexOfFirst {
+                it <= event.startMinutes
+            }
+
+            if (column == -1) {
+                column = columnEnds.size
+                columnEnds.add(event.endMinutes)
+            } else {
+                columnEnds[column] = event.endMinutes
+            }
+
+            assignedColumns.add(column)
+        }
+
+        val columnCount = columnEnds.size
+
+        cluster.forEachIndexed { index, event ->
+            placements.add(
+                WeekEventPlacement(
+                    event = event.event,
+                    startMinutes = event.startMinutes,
+                    endMinutes = event.endMinutes,
+                    column = assignedColumns[index],
+                    columnCount = columnCount
+                )
+            )
+        }
+
+        clusterStart = clusterEnd + 1
+    }
+
+    return placements
 }
 
 @Composable
@@ -703,28 +866,47 @@ private fun MonthCalendarGrid(
                         val isToday = date == today
                         val isSelected = date == selectedDate
 
-                        Card(
+                        Surface(
                             modifier = Modifier
                                 .weight(1f)
-                                .height(72.dp)
+                                .height(76.dp)
                                 .clickable {
                                     onDateSelected(date)
                                 },
-                            shape = RoundedCornerShape(8.dp)
+                            shape = RoundedCornerShape(10.dp),
+                            color = if (isSelected) {
+                                MaterialTheme.colorScheme.primaryContainer
+                            } else {
+                                MaterialTheme.colorScheme.surface
+                            },
+                            border = BorderStroke(
+                                1.dp,
+                                if (isToday) {
+                                    MaterialTheme.colorScheme.primary
+                                } else {
+                                    MaterialTheme.colorScheme.outlineVariant
+                                }
+                            )
                         ) {
                             Column(
                                 modifier = Modifier
                                     .fillMaxSize()
-                                    .padding(6.dp),
+                                    .padding(
+                                        horizontal = 6.dp,
+                                        vertical = 7.dp
+                                    ),
                                 horizontalAlignment = Alignment.CenterHorizontally
                             ) {
                                 Text(
                                     text = date.dayOfMonth.toString(),
                                     style = MaterialTheme.typography.labelLarge,
+                                    fontWeight = if (isToday || isSelected) {
+                                        androidx.compose.ui.text.font.FontWeight.SemiBold
+                                    } else {
+                                        androidx.compose.ui.text.font.FontWeight.Normal
+                                    },
                                     color = when {
-                                        isToday ->
-                                            MaterialTheme.colorScheme.primary
-                                        isSelected ->
+                                        isToday || isSelected ->
                                             MaterialTheme.colorScheme.primary
                                         !isCurrentMonth ->
                                             MaterialTheme.colorScheme.onSurfaceVariant
@@ -734,7 +916,7 @@ private fun MonthCalendarGrid(
                                 )
 
                                 if (dayEvents.isNotEmpty()) {
-                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Spacer(modifier = Modifier.height(5.dp))
 
                                     Text(
                                         text = if (dayEvents.size == 1) {
@@ -743,7 +925,9 @@ private fun MonthCalendarGrid(
                                             "${dayEvents.size} events"
                                         },
                                         style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.primary
+                                        color = MaterialTheme.colorScheme.primary,
+                                        maxLines = 2,
+                                        overflow = TextOverflow.Ellipsis
                                     )
                                 }
                             }
@@ -823,90 +1007,183 @@ private fun EventList(
 }
 
 @Composable
-private fun CalendarFilters(
+private fun CalendarFilterControl(
     selectedStatus: String?,
     selectedEventType: String?,
     onStatusSelected: (String?) -> Unit,
     onEventTypeSelected: (String?) -> Unit
 ) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        FilterMenu(
-            label = selectedStatus?.formatFilterLabel() ?: "Status",
-            options = listOf(
-                "scheduled",
-                "completed",
-                "cancelled",
-                "no_show"
-            ),
-            selected = selectedStatus,
-            onSelected = onStatusSelected,
-            modifier = Modifier.weight(1f)
-        )
+    var filterDialogOpen by remember { mutableStateOf(false) }
 
-        FilterMenu(
-            label = selectedEventType?.formatFilterLabel() ?: "Type",
-            options = listOf(
-                "general",
-                "meeting",
-                "call",
-                "follow_up",
-                "site_visit",
-                "installation",
-                "payment",
-                "other"
-            ),
-            selected = selectedEventType,
-            onSelected = onEventTypeSelected,
-            modifier = Modifier.weight(1f)
+    val activeFilterCount =
+        listOf(
+            selectedStatus != null,
+            selectedEventType != null
+        ).count { it }
+
+    OutlinedButton(
+        onClick = { filterDialogOpen = true },
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(
+            horizontal = 14.dp,
+            vertical = 0.dp
+        ),
+        modifier = Modifier.height(40.dp)
+    ) {
+        Text(
+            text = if (activeFilterCount == 0) {
+                "Filters"
+            } else {
+                "Filters · $activeFilterCount"
+            }
+        )
+    }
+
+    if (filterDialogOpen) {
+        CalendarFiltersDialog(
+            selectedStatus = selectedStatus,
+            selectedEventType = selectedEventType,
+            onDismiss = { filterDialogOpen = false },
+            onApply = { status, eventType ->
+                onStatusSelected(status)
+                onEventTypeSelected(eventType)
+                filterDialogOpen = false
+            },
+            onReset = {
+                onStatusSelected(null)
+                onEventTypeSelected(null)
+                filterDialogOpen = false
+            }
         )
     }
 }
 
 @Composable
-private fun FilterMenu(
-    label: String,
-    options: List<String>,
-    selected: String?,
-    onSelected: (String?) -> Unit,
-    modifier: Modifier = Modifier
+private fun CalendarFiltersDialog(
+    selectedStatus: String?,
+    selectedEventType: String?,
+    onDismiss: () -> Unit,
+    onApply: (String?, String?) -> Unit,
+    onReset: () -> Unit
 ) {
-    var expanded by remember { mutableStateOf(false) }
+    var localStatus by remember { mutableStateOf(selectedStatus) }
+    var localEventType by remember { mutableStateOf(selectedEventType) }
 
-    Column(modifier = modifier) {
-        Text(
-            text = label,
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable { expanded = true }
-                .padding(12.dp),
-            style = MaterialTheme.typography.bodyMedium
-        )
+    val statusOptions = listOf(
+        "scheduled",
+        "completed",
+        "cancelled",
+        "no_show"
+    )
 
-        DropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { expanded = false }
-        ) {
-            DropdownMenuItem(
-                text = { Text("All") },
-                onClick = {
-                    expanded = false
-                    onSelected(null)
-                }
+    val eventTypeOptions = listOf(
+        "general",
+        "meeting",
+        "call",
+        "follow_up",
+        "site_visit",
+        "installation",
+        "payment",
+        "other"
+    )
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        shape = RoundedCornerShape(20.dp),
+        containerColor = MaterialTheme.colorScheme.surface,
+        tonalElevation = 0.dp,
+        title = {
+            Text(
+                text = "Filters",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold
             )
+        },
+        text = {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                CalendarFilterSection("Status") {
+                    FilterChip(
+                        selected = localStatus == null,
+                        onClick = { localStatus = null },
+                        label = { Text("All") }
+                    )
 
-            options.forEach { option ->
-                DropdownMenuItem(
-                    text = { Text(option.formatFilterLabel()) },
-                    onClick = {
-                        expanded = false
-                        onSelected(option)
+                    statusOptions.forEach { option ->
+                        FilterChip(
+                            selected = localStatus == option,
+                            onClick = { localStatus = option },
+                            label = { Text(option.formatFilterLabel()) }
+                        )
                     }
-                )
+                }
+
+                CalendarFilterSection("Type") {
+                    FilterChip(
+                        selected = localEventType == null,
+                        onClick = { localEventType = null },
+                        label = { Text("All") }
+                    )
+
+                    eventTypeOptions.forEach { option ->
+                        FilterChip(
+                            selected = localEventType == option,
+                            onClick = { localEventType = option },
+                            label = { Text(option.formatFilterLabel()) }
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            OutlinedButton(
+                onClick = {
+                    onApply(localStatus, localEventType)
+                }
+            ) {
+                Text("Apply")
+            }
+        },
+        dismissButton = {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                TextButton(onClick = onReset) {
+                    Text("Reset")
+                }
+
+                TextButton(onClick = onDismiss) {
+                    Text("Cancel")
+                }
             }
         }
+    )
+}
+
+@Composable
+private fun CalendarFilterSection(
+    title: String,
+    content: @Composable RowScope.() -> Unit
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = androidx.compose.ui.text.font.FontWeight.Medium
+        )
+
+        Spacer(modifier = Modifier.height(6.dp))
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            content = content
+        )
     }
 }
 
@@ -942,52 +1219,107 @@ private fun CalendarEventCard(
         }
     }
 
-    Card(
+    val statusLabel = event.status.formatFilterLabel()
+    val typeLabel = event.eventType.formatFilterLabel()
+
+    val statusContainer = when (event.status.lowercase()) {
+        "completed" -> MaterialTheme.colorScheme.primaryContainer
+        "cancelled", "no_show" -> MaterialTheme.colorScheme.errorContainer
+        else -> MaterialTheme.colorScheme.surfaceVariant
+    }
+
+    val statusContent = when (event.status.lowercase()) {
+        "completed" -> MaterialTheme.colorScheme.onPrimaryContainer
+        "cancelled", "no_show" -> MaterialTheme.colorScheme.onErrorContainer
+        else -> MaterialTheme.colorScheme.onSurfaceVariant
+    }
+
+    Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(12.dp),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(
+            1.dp,
+            MaterialTheme.colorScheme.outlineVariant
+        )
     ) {
         Column(
-            modifier = Modifier.padding(16.dp)
+            modifier = Modifier.padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             Text(
                 text = timeText,
-                style = MaterialTheme.typography.labelLarge
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = androidx.compose.ui.text.font.FontWeight.Medium
             )
-
-            Spacer(modifier = Modifier.height(4.dp))
 
             Text(
                 text = event.title,
-                style = MaterialTheme.typography.titleMedium
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
             )
 
-            Spacer(modifier = Modifier.height(4.dp))
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Surface(
+                    shape = RoundedCornerShape(20.dp),
+                    color = statusContainer
+                ) {
+                    Text(
+                        text = statusLabel,
+                        modifier = Modifier.padding(
+                            horizontal = 8.dp,
+                            vertical = 4.dp
+                        ),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = statusContent,
+                        fontWeight = androidx.compose.ui.text.font.FontWeight.Medium
+                    )
+                }
 
-            Text(
-                text = "${event.eventType.formatFilterLabel()} • " +
-                    event.status.formatFilterLabel(),
-                style = MaterialTheme.typography.bodySmall
-            )
+                Text(
+                    text = typeLabel,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
 
             event.leadName?.let {
                 Text(
                     text = "Lead: $it",
-                    style = MaterialTheme.typography.bodyMedium
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
 
             event.taskTitle?.let {
                 Text(
                     text = "Task: $it",
-                    style = MaterialTheme.typography.bodyMedium
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
 
             event.location?.takeIf { it.isNotBlank() }?.let {
                 Text(
                     text = "Location: $it",
-                    style = MaterialTheme.typography.bodyMedium
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
         }

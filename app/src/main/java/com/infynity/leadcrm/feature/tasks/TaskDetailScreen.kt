@@ -1,5 +1,7 @@
 package com.infynity.leadcrm.feature.tasks
 
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -8,6 +10,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
@@ -18,6 +21,7 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Surface
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -208,14 +212,14 @@ private fun TaskDetailContent(
     ) {
         item {
             TaskSectionCard(title = "Task") {
-                DetailText("Title", task.title)
-                DetailText("Description", task.description)
-                DetailText("Status", task.statusName)
-                DetailText(
+                TaskInlineDetailText("Title", task.title)
+                TaskInlineDetailText("Description", task.description)
+                TaskInlineDetailText("Status", task.statusName)
+                TaskInlineDetailText(
                     "Priority",
                     task.priority.replaceFirstChar { it.uppercase() }
                 )
-                DetailText(
+                TaskInlineDetailText(
                     "Task Type",
                     formatTaskType(task.taskType)
                 )
@@ -233,9 +237,9 @@ private fun TaskDetailContent(
         if (!task.leadName.isNullOrBlank() || task.leadId != null) {
             item {
                 TaskSectionCard(title = "Lead") {
-                    DetailText("Lead", task.leadName)
+                    TaskInlineDetailText("Lead", task.leadName)
                     task.leadId?.let {
-                        DetailText("Lead ID", it.toString())
+                        TaskInlineDetailText("Lead ID", it.toString())
                     }
                 }
             }
@@ -247,9 +251,9 @@ private fun TaskDetailContent(
         ) {
             item {
                 TaskSectionCard(title = "Assignment") {
-                    DetailText("Assigned To", task.assignedToName)
-                    DetailText("Team", task.teamName)
-                    DetailText("Created By", task.createdByName)
+                    TaskInlineDetailText("Assigned To", task.assignedToName)
+                    TaskInlineDetailText("Team", task.teamName)
+                    TaskInlineDetailText("Created By", task.createdByName)
                 }
             }
         }
@@ -272,8 +276,14 @@ private fun TaskSectionCard(
     title: String,
     content: @Composable ColumnScope.() -> Unit
 ) {
-    Card(
-        modifier = Modifier.fillMaxWidth()
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(
+            1.dp,
+            MaterialTheme.colorScheme.outlineVariant
+        )
     ) {
         Column(
             modifier = Modifier.padding(16.dp)
@@ -288,6 +298,34 @@ private fun TaskSectionCard(
 
             content()
         }
+    }
+}
+
+@Composable
+private fun TaskInlineDetailText(
+    label: String,
+    value: String?
+) {
+    if (value.isNullOrBlank()) return
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 2.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = "$label:",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            fontWeight = FontWeight.Medium
+        )
+        Spacer(modifier = Modifier.width(4.dp))
+        Text(
+            text = value,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurface
+        )
     }
 }
 
