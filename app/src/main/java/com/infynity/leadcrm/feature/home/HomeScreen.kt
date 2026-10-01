@@ -15,6 +15,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.Refresh
@@ -40,7 +41,9 @@ import androidx.compose.ui.unit.dp
 import com.infynity.leadcrm.core.network.UserResponse
 import com.infynity.leadcrm.core.network.models.CalendarEventResponse
 import com.infynity.leadcrm.core.network.models.LeadResponse
+import com.infynity.leadcrm.feature.calendar.components.CalendarEventCard
 import com.infynity.leadcrm.feature.leads.components.LeadCard
+import com.infynity.leadcrm.feature.tasks.components.TaskCard
 import com.infynity.leadcrm.core.network.models.TaskResponse
 import java.time.OffsetDateTime
 import java.time.ZoneId
@@ -329,18 +332,21 @@ private fun SummaryRow(
     ) {
         SummaryCard(
             modifier = Modifier.weight(1f),
+            icon = Icons.Default.TaskAlt,
             label = "Tasks",
             value = taskCount
         )
 
         SummaryCard(
             modifier = Modifier.weight(1f),
+            icon = Icons.Default.CalendarMonth,
             label = "Events",
             value = eventCount
         )
 
         SummaryCard(
             modifier = Modifier.weight(1f),
+            icon = Icons.Default.People,
             label = "Leads",
             value = leadCount
         )
@@ -350,6 +356,7 @@ private fun SummaryRow(
 @Composable
 private fun SummaryCard(
     modifier: Modifier,
+    icon: ImageVector,
     label: String,
     value: Int
 ) {
@@ -372,6 +379,16 @@ private fun SummaryCard(
                     vertical = 13.dp
                 )
         ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary
+            )
+
+            Spacer(
+                modifier = Modifier.height(6.dp)
+            )
+
             Text(
                 text = value.toString(),
                 style = MaterialTheme.typography.headlineSmall,
@@ -415,134 +432,6 @@ private fun SectionTitle(
             style = MaterialTheme.typography.titleLarge,
             color = MaterialTheme.colorScheme.onBackground
         )
-    }
-}
-
-@Composable
-private fun TaskCard(
-    task: TaskResponse,
-    onClick: () -> Unit
-) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick),
-        shape = CardShape,
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        ),
-        border = androidx.compose.foundation.BorderStroke(
-            1.dp,
-            MaterialTheme.colorScheme.outlineVariant
-        )
-    ) {
-        Column(
-            modifier = Modifier.padding(15.dp)
-        ) {
-            Text(
-                text = task.title,
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurface,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis
-            )
-
-            task.leadName
-                ?.takeIf { it.isNotBlank() }
-                ?.let {
-                    Spacer(modifier = Modifier.height(4.dp))
-
-                    Text(
-                        text = "Lead: $it",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-
-            Spacer(modifier = Modifier.height(5.dp))
-
-            Text(
-                text = "Priority: ${task.priority}",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.primary
-            )
-
-            task.dueDate?.let {
-                Spacer(modifier = Modifier.height(2.dp))
-
-                Text(
-                    text = "Due: ${formatDateTime(it)}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun CalendarEventCard(
-    event: CalendarEventResponse,
-    onClick: () -> Unit
-) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick),
-        shape = CardShape,
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        ),
-        border = androidx.compose.foundation.BorderStroke(
-            1.dp,
-            MaterialTheme.colorScheme.outlineVariant
-        )
-    ) {
-        Column(
-            modifier = Modifier.padding(15.dp)
-        ) {
-            Text(
-                text = event.title,
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurface,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis
-            )
-
-            Spacer(modifier = Modifier.height(4.dp))
-
-            Text(
-                text = "${formatDateTime(event.startAt)} - ${formatTime(event.endAt)}",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.primary
-            )
-
-            event.leadName
-                ?.takeIf { it.isNotBlank() }
-                ?.let {
-                    Spacer(modifier = Modifier.height(3.dp))
-
-                    Text(
-                        text = "Lead: $it",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-
-            event.location
-                ?.takeIf { it.isNotBlank() }
-                ?.let {
-                    Spacer(modifier = Modifier.height(2.dp))
-
-                    Text(
-                        text = "Location: $it",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-        }
     }
 }
 
